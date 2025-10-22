@@ -201,14 +201,15 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
+.next/out/
+.next/cache/
+node_modules/
+.next/
+dist/
+frontend/.next/
 # Marimo
 marimo/_static/
 marimo/_lsp/
 __marimo__/
 
 
-.next/out/
-.next/cache/
-node_modules/
-.next/
-dist/
