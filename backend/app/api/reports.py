@@ -2,12 +2,21 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import List
 
-from database import get_db
-from models import User
-from schemas import Stock, ChemicalWithStock
-from crud import stock_crud
-from auth.auth import get_current_user, require_admin
-from utils.notifications import send_daily_stock_report
+# ✅ Flexible imports (works whether run as module or script)
+try:
+    from ..database import get_db
+    from ..models import User
+    from ..schemas import Stock, ChemicalWithStock
+    from ..crud import stock_crud
+    from ..auth.auth import get_current_user, require_admin
+    from ..utils.notifications import send_daily_stock_report
+except ImportError:
+    from app.database import get_db
+    from app.models import User
+    from app.schemas import Stock, ChemicalWithStock
+    from app.crud import stock_crud
+    from auth.auth import get_current_user, require_admin
+    from app.utils.notifications import send_daily_stock_report
 
 router = APIRouter()
 
@@ -21,6 +30,7 @@ def get_low_stock_chemicals(
     """Get chemicals with low stock"""
     return stock_crud.get_low_stock_chemicals(db, skip=skip, limit=limit)
 
+
 @router.get("/stock/summary")
 def get_stock_summary(
     db: Session = Depends(get_db),
@@ -28,6 +38,7 @@ def get_stock_summary(
 ):
     """Get stock summary statistics"""
     return stock_crud.get_stock_summary(db)
+
 
 @router.post("/notifications/daily-report")
 def trigger_daily_report(

@@ -1,10 +1,10 @@
 // app/auth/register/page.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Beaker, Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
+import { Beaker, Mail, Lock, User, Eye, EyeOff, Bug } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 
 export default function RegisterPage() {
@@ -13,21 +13,107 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
   const { register } = useAuth();
   const router = useRouter();
 
+  // Debug: Log when component mounts and check environment
+  useEffect(() => {
+    console.log('🔧 Register page mounted');
+    console.log('🌐 API URL:', process.env.NEXT_PUBLIC_API_URL);
+    console.log('🔑 Auth context available:', !!register);
+  }, [register]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
     setIsLoading(true);
+
+    console.log('🔄 Starting registration process...');
+    console.log('📝 Form data:', { name, email, password: '***' });
 
     try {
       await register(email, password, name);
-      router.push('/dashboard');
-    } catch (error) {
-      console.error('Registration failed:', error);
-      // You can add toast notifications here
+      console.log('✅ Registration completed successfully in page component');
+      // No need to push to dashboard here - it's handled in the auth context after auto-login
+    } catch (error: any) {
+      console.error('❌ Registration failed in page component:', error);
+      setError(error.message || 'Registration failed. Please try again.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Test direct API call for debugging
+  const testDirectRegistration = async () => {
+    console.log('🧪 Testing direct registration API call...');
+    
+    const testData = {
+      email: `test${Date.now()}@example.com`,
+      password: "testpassword123",
+      full_name: "Test User",
+      role: "viewer"
+    };
+
+    try {
+      console.log('📤 Sending test data:', testData);
+      
+      const response = await fetch('http://localhost:8000/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(testData),
+      });
+
+      console.log('🧪 Direct test response status:', response.status);
+      
+      const responseText = await response.text();
+      console.log('🧪 Direct test response body:', responseText);
+
+      if (response.ok) {
+        console.log('✅ Direct registration test SUCCESS');
+        try {
+          const data = JSON.parse(responseText);
+          console.log('✅ Parsed response data:', data);
+          
+          // Test login with the newly created account
+          console.log('🔄 Testing login with new account...');
+          const loginFormData = new URLSearchParams();
+          loginFormData.append('username', testData.email);
+          loginFormData.append('password', testData.password);
+
+          const loginResponse = await fetch('http://localhost:8000/auth/login', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: loginFormData,
+          });
+
+          console.log('🧪 Login test response status:', loginResponse.status);
+          const loginResponseText = await loginResponse.text();
+          console.log('🧪 Login test response body:', loginResponseText);
+
+          if (loginResponse.ok) {
+            console.log('✅ Login test SUCCESS - Account works!');
+            alert('✅ Registration and login test SUCCESSFUL! The account was created and can be used to login.');
+          } else {
+            console.log('❌ Login test FAILED');
+            alert('❌ Registration worked but login failed. Check backend logs.');
+          }
+
+        } catch (e) {
+          console.log('⚠️ Response is not JSON:', responseText);
+        }
+      } else {
+        console.log('❌ Direct registration test FAILED');
+        console.log('❌ Error details:', responseText);
+        alert(`❌ Registration failed: ${response.status} - ${responseText}`);
+      }
+    } catch (error) {
+      console.error('❌ Direct test error:', error);
+      alert(`❌ Network error: ${error}`);
     }
   };
 
@@ -55,6 +141,24 @@ export default function RegisterPage() {
             </Link>
           </p>
         </div>
+
+        {/* Debug Button - Remove in production */}
+        <div className="text-center">
+          <button
+            onClick={testDirectRegistration}
+            className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm mb-4 flex items-center gap-2 mx-auto"
+          >
+            <Bug className="h-4 w-4" />
+            Test Registration API
+          </button>
+        </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+            <strong>Registration Error:</strong> {error}
+          </div>
+        )}
 
         {/* Registration Form */}
         <form className="mt-8 space-y-6 card p-6" onSubmit={handleSubmit}>
@@ -124,6 +228,7 @@ export default function RegisterPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md bg-white dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                   placeholder="Create a password"
+                  minLength={6}
                 />
                 <button
                   type="button"
@@ -137,6 +242,9 @@ export default function RegisterPage() {
                   )}
                 </button>
               </div>
+              <p className="mt-1 text-xs text-gray-500">
+                Password must be at least 6 characters long
+              </p>
             </div>
           </div>
 
@@ -146,14 +254,30 @@ export default function RegisterPage() {
               disabled={isLoading}
               className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {isLoading ? 'Creating account...' : 'Create account'}
+              {isLoading ? (
+                <span className="flex items-center">
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Creating account...
+                </span>
+              ) : (
+                'Create account'
+              )}
             </button>
           </div>
 
-          <div className="text-center">
+          <div className="text-center space-y-2">
+            <Link
+              href="/auth/login"
+              className="block text-sm text-primary-600 hover:text-primary-500 font-medium"
+            >
+              Already have an account? Sign in
+            </Link>
             <Link
               href="/"
-              className="text-sm text-primary-600 hover:text-primary-500 font-medium"
+              className="block text-sm text-gray-600 hover:text-gray-500 font-medium"
             >
               ← Back to home
             </Link>

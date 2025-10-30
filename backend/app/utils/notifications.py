@@ -7,7 +7,7 @@ import os
 from dotenv import load_dotenv
 from sqlalchemy.orm import Session
 
-from models import Chemical, Stock, Alert, User
+from app.models import Chemical, Stock, Alert, User
 
 load_dotenv()
 
@@ -148,8 +148,8 @@ notification_service = NotificationService()
 
 def check_and_notify_low_stock(db: Session, chemical_id: int):
     """Check stock level and send notifications if low"""
-    from crud.stock_crud import get_stock
-    from models import Chemical
+    from app.crud.stock_crud import get_stock
+    from app.models import Chemical
     
     stock = get_stock(db, chemical_id)
     if not stock or stock.current_quantity > stock.trigger_level:
@@ -168,7 +168,7 @@ def check_and_notify_low_stock(db: Session, chemical_id: int):
 
 def send_daily_stock_report(db: Session):
     """Send daily stock report to all admin users"""
-    from crud.stock_crud import get_all_stock
+    from app.crud.stock_crud import get_all_stock
     
     # Get low stock chemicals
     all_stock = get_all_stock(db)

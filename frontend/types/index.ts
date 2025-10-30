@@ -28,11 +28,6 @@ export interface Stock {
   last_updated: string;
 }
 
-export interface ChemicalWithStock extends Chemical {
-  stock: Stock | null;
-  msds: MSDS | null;
-}
-
 export interface MSDS {
   id: number;
   chemical_id: number;
@@ -41,6 +36,22 @@ export interface MSDS {
   precautionary_statements: Record<string, any> | null;
   handling_notes: string | null;
   retrieved_at: string;
+}
+
+export interface HazardSummary {
+  risk_level: 'low' | 'medium' | 'high';
+  ghs_pictograms: string[];
+  hazard_statements: string[];
+  precautionary_statements: string[];
+  has_hazards?: boolean;
+  hazard_count?: number;
+  precaution_count?: number;
+}
+
+export interface ChemicalWithStock extends Chemical {
+  stock: Stock | null;
+  msds: MSDS | null;
+  hazardSummary?: HazardSummary;
 }
 
 export interface Alert {
@@ -81,4 +92,15 @@ export interface StockFormData {
   current_quantity: number;
   unit: string;
   trigger_level: number;
+}
+
+export interface StockSummary {
+  total_chemicals: number;
+  low_stock_chemicals: number;
+  out_of_stock_chemicals: number;
+  chemicals_without_msds: number;
+  // Add the missing properties that your dashboard is using
+  low_stock_count: number;
+  total_quantity: number;
+  low_stock_percentage: number;
 }

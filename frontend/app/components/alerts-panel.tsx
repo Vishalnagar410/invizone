@@ -54,7 +54,7 @@ export function AlertsPanel() {
       {/* Alert Bell */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-3 bg-white dark:bg-gray-800 rounded-full shadow-lg hover:shadow-xl transition-shadow"
+        className="relative p-3 bg-white dark:bg-gray-800 rounded-full shadow-lg hover:shadow-xl transition-shadow border border-gray-200 dark:border-gray-700"
       >
         <Bell className="h-6 w-6 text-gray-600 dark:text-gray-300" />
         {unreadCount > 0 && (
@@ -74,7 +74,7 @@ export function AlertsPanel() {
               </h3>
               <button
                 onClick={() => setIsOpen(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -84,12 +84,13 @@ export function AlertsPanel() {
           <div className="max-h-96 overflow-y-auto">
             {isLoading ? (
               <div className="p-4 text-center text-gray-500 dark:text-gray-400">
-                Loading alerts...
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600 mx-auto"></div>
+                <p className="mt-2">Loading alerts...</p>
               </div>
             ) : alerts.length === 0 ? (
               <div className="p-4 text-center text-gray-500 dark:text-gray-400">
                 <CheckCircle className="h-8 w-8 text-green-500 mx-auto mb-2" />
-                No active alerts
+                <p>No active alerts</p>
               </div>
             ) : (
               <div className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -108,7 +109,7 @@ export function AlertsPanel() {
                       {user.role === 'admin' && (
                         <button
                           onClick={() => handleResolveAlert(alert.id)}
-                          className="p-1 text-green-600 hover:text-green-700 transition-colors"
+                          className="p-1 text-green-600 hover:text-green-700 transition-colors flex-shrink-0"
                           title="Mark as resolved"
                         >
                           <CheckCircle className="h-4 w-4" />
@@ -125,7 +126,7 @@ export function AlertsPanel() {
             <div className="p-3 border-t border-gray-200 dark:border-gray-700">
               <button
                 onClick={() => alerts.forEach(alert => handleResolveAlert(alert.id))}
-                className="w-full btn-primary text-sm py-2"
+                className="w-full bg-primary-600 hover:bg-primary-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors"
               >
                 Resolve All Alerts
               </button>

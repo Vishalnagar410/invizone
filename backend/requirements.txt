@@ -7,10 +7,12 @@ python-jose[cryptography]
 passlib[bcrypt]
 pydantic
 pydantic-settings
-rdkit
+rdkit-pypi
 requests
 python-dotenv
 emails
 jinja2
 pandas
 openpyxl
+aiofiles
+python-barcode

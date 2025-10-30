@@ -12,19 +12,21 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
   const { login } = useAuth();
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
     setIsLoading(true);
 
     try {
       await login(email, password);
-      router.push('/dashboard');
-    } catch (error) {
+      // No need to push to dashboard here - it's handled in the auth context
+    } catch (error: any) {
       console.error('Login failed:', error);
-      // You can add toast notifications here
+      setError(error.message || 'Login failed. Please check your credentials.');
     } finally {
       setIsLoading(false);
     }
@@ -54,6 +56,13 @@ export default function LoginPage() {
             </Link>
           </p>
         </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+            {error}
+          </div>
+        )}
 
         {/* Login Form */}
         <form className="mt-8 space-y-6 card p-6" onSubmit={handleSubmit}>

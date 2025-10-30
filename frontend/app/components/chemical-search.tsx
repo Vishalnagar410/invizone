@@ -69,7 +69,7 @@ export function ChemicalSearch({ onChemicalSelect, showActions = true }: Chemica
   return (
     <div className="space-y-6">
       {/* Search Header */}
-      <div className="card p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-6">
         <div className="flex flex-col lg:flex-row gap-4">
           {/* Search Input */}
           <div className="flex-1 relative">
@@ -79,12 +79,12 @@ export function ChemicalSearch({ onChemicalSelect, showActions = true }: Chemica
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search by name, CAS number, SMILES, or molecular formula..."
-              className="input-field pl-10 pr-10"
+              className="w-full pl-10 pr-10 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
             {query && (
               <button
                 onClick={clearSearch}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -97,7 +97,7 @@ export function ChemicalSearch({ onChemicalSelect, showActions = true }: Chemica
               onClick={() => setSearchType('text')}
               className={`px-4 py-2 rounded-lg border transition-colors ${
                 searchType === 'text'
-                  ? 'bg-primary-600 text-white border-primary-600'
+                  ? 'bg-blue-600 text-white border-blue-600'
                   : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700'
               }`}
             >
@@ -107,7 +107,7 @@ export function ChemicalSearch({ onChemicalSelect, showActions = true }: Chemica
               onClick={() => setSearchType('structure')}
               className={`px-4 py-2 rounded-lg border transition-colors ${
                 searchType === 'structure'
-                  ? 'bg-primary-600 text-white border-primary-600'
+                  ? 'bg-blue-600 text-white border-blue-600'
                   : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700'
               }`}
             >
@@ -122,7 +122,7 @@ export function ChemicalSearch({ onChemicalSelect, showActions = true }: Chemica
             <p className="text-gray-600 dark:text-gray-300 mb-2">
               Structure search coming soon...
             </p>
-            <button className="btn-primary text-sm">
+            <button className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg font-medium transition-colors text-sm">
               Draw Structure
             </button>
           </div>
@@ -140,7 +140,7 @@ export function ChemicalSearch({ onChemicalSelect, showActions = true }: Chemica
               type="checkbox"
               checked={filters.lowStock}
               onChange={(e) => setFilters(prev => ({ ...prev, lowStock: e.target.checked }))}
-              className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
             />
             <span className="text-sm text-gray-700 dark:text-gray-300">Low Stock Only</span>
           </label>
@@ -150,7 +150,7 @@ export function ChemicalSearch({ onChemicalSelect, showActions = true }: Chemica
               type="checkbox"
               checked={filters.hasMSDS}
               onChange={(e) => setFilters(prev => ({ ...prev, hasMSDS: e.target.checked }))}
-              className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
             />
             <span className="text-sm text-gray-700 dark:text-gray-300">Has MSDS</span>
           </label>
@@ -160,8 +160,8 @@ export function ChemicalSearch({ onChemicalSelect, showActions = true }: Chemica
       {/* Search Results */}
       <div>
         {isLoading && (
-          <div className="card p-8 text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-8 text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
             <p className="mt-2 text-gray-600 dark:text-gray-300">Searching chemicals...</p>
           </div>
         )}
@@ -181,7 +181,7 @@ export function ChemicalSearch({ onChemicalSelect, showActions = true }: Chemica
             </div>
 
             {filteredChemicals.length === 0 ? (
-              <div className="card p-8 text-center">
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-8 text-center">
                 <p className="text-gray-500 dark:text-gray-400">
                   No chemicals found matching your search criteria.
                 </p>
@@ -202,7 +202,7 @@ export function ChemicalSearch({ onChemicalSelect, showActions = true }: Chemica
         )}
 
         {!isLoading && !query && (
-          <div className="card p-8 text-center">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-8 text-center">
             <Search className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
               Search Chemicals

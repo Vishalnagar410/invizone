@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { ChemicalWithStock, StockSummary } from '@/types';
 import { stockAPI, chemicalsAPI } from '@/lib/api';
-import { ChemicalCard } from '@/components/chemical-card';
+import { ChemicalCard } from '../../components/chemical-card';
 import { useAuth } from '@/lib/auth';
 
 export default function StockPage() {
@@ -56,7 +56,7 @@ export default function StockPage() {
     try {
       // Get active alerts for this chemical and resolve them
       const alerts = await stockAPI.getAlerts();
-      const chemicalAlerts = alerts.filter(alert => 
+      const chemicalAlerts = alerts.filter((alert: any) => 
         alert.chemical_id === chemicalId && !alert.is_resolved
       );
       
@@ -78,7 +78,7 @@ export default function StockPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-96">
-        <RefreshCw className="h-8 w-8 animate-spin text-primary-600" />
+        <RefreshCw className="h-8 w-8 animate-spin text-blue-600" />
       </div>
     );
   }
@@ -97,9 +97,9 @@ export default function StockPage() {
         <div className="flex gap-3">
           <button
             onClick={loadStockData}
-            className="btn-secondary"
+            className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 py-2 px-4 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"
           >
-            <RefreshCw className="h-4 w-4 mr-2" />
+            <RefreshCw className="h-4 w-4" />
             Refresh
           </button>
           
@@ -107,12 +107,12 @@ export default function StockPage() {
             <button
               onClick={handleSendDailyReport}
               disabled={isSendingReport}
-              className="btn-primary"
+              className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md font-medium transition-colors disabled:opacity-50 flex items-center gap-2"
             >
               {isSendingReport ? (
-                <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+                <RefreshCw className="h-4 w-4 animate-spin" />
               ) : (
-                <Mail className="h-4 w-4 mr-2" />
+                <Mail className="h-4 w-4" />
               )}
               Send Daily Report
             </button>
@@ -123,7 +123,7 @@ export default function StockPage() {
       {/* Summary Cards */}
       {summary && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="card p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center">
               <div className="p-3 bg-blue-100 dark:bg-blue-900 rounded-lg">
                 <Package className="h-6 w-6 text-blue-600 dark:text-blue-400" />
@@ -137,7 +137,7 @@ export default function StockPage() {
             </div>
           </div>
 
-          <div className="card p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center">
               <div className="p-3 bg-red-100 dark:bg-red-900 rounded-lg">
                 <AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400" />
@@ -151,7 +151,7 @@ export default function StockPage() {
             </div>
           </div>
 
-          <div className="card p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center">
               <div className="p-3 bg-green-100 dark:bg-green-900 rounded-lg">
                 <TrendingUp className="h-6 w-6 text-green-600 dark:text-green-400" />
@@ -166,7 +166,7 @@ export default function StockPage() {
             </div>
           </div>
 
-          <div className="card p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center">
               <div className="p-3 bg-orange-100 dark:bg-orange-900 rounded-lg">
                 <BarChart3 className="h-6 w-6 text-orange-600 dark:text-orange-400" />
@@ -183,7 +183,7 @@ export default function StockPage() {
       )}
 
       {/* Low Stock Alerts */}
-      <div className="card p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-6">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
@@ -234,7 +234,7 @@ export default function StockPage() {
       </div>
 
       {/* Stock Management Tips */}
-      <div className="card p-6 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+      <div className="rounded-lg shadow-md border border-blue-200 dark:border-blue-800 p-6 bg-blue-50 dark:bg-blue-900/20">
         <h3 className="text-lg font-medium text-blue-900 dark:text-blue-100 mb-3">
           💡 Stock Management Tips
         </h3>

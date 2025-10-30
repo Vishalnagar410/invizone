@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
-import { AuthProvider } from '@/lib/auth';
+import { AuthProvider } from '../lib/auth';
 import { ThemeProvider } from './components/theme-provider';
+import { DebugPanel } from './components/debug-panel';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -22,6 +23,8 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <AuthProvider>
             {children}
+            {/* Add debug panel for development - positioned outside main content flow */}
+            <DebugPanel />
           </AuthProvider>
         </ThemeProvider>
       </body>

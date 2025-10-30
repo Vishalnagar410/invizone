@@ -1,5 +1,5 @@
 # Test chemical processing
-from backend.app.utils.chemical_utils import process_chemical_data
+from app.utils.chemical_utils import process_chemical_data
 
 # Test with aspirin
 result = process_chemical_data(

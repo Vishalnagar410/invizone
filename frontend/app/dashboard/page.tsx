@@ -10,12 +10,14 @@ import {
   FileText,
   ArrowRight,
   TrendingUp,
-  Users
+  Users,
+  BarChart3,
+  RefreshCw,
+  Mail
 } from 'lucide-react';
 import { ChemicalWithStock, StockSummary } from '@/types';
 import { chemicalsAPI, stockAPI } from '@/lib/api';
-import { ChemicalCard } from '@/components/chemical-card';
-import { AlertsPanel } from '@/components/alerts-panel';
+import { ChemicalCard } from '../components/chemical-card';
 import { useAuth } from '@/lib/auth';
 
 export default function DashboardPage() {
@@ -23,6 +25,7 @@ export default function DashboardPage() {
   const [lowStockChemicals, setLowStockChemicals] = useState<ChemicalWithStock[]>([]);
   const [summary, setSummary] = useState<StockSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSendingReport, setIsSendingReport] = useState(false);
   const { user } = useAuth();
 
   const loadDashboardData = async () => {
@@ -30,7 +33,7 @@ export default function DashboardPage() {
     try {
       const [recentData, lowStockData, summaryData] = await Promise.all([
         chemicalsAPI.getAll(0, 6),
-        stockAPI.getLowStockChemicals(0, 3),
+        stockAPI.getLowStockChemicals(0, 6),
         stockAPI.getStockSummary()
       ]);
       setRecentChemicals(recentData);
@@ -40,6 +43,40 @@ export default function DashboardPage() {
       console.error('Failed to load dashboard data:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSendDailyReport = async () => {
+    if (!user || user.role !== 'admin') return;
+    
+    setIsSendingReport(true);
+    try {
+      await stockAPI.triggerDailyReport();
+      alert('Daily report sent successfully!');
+    } catch (error) {
+      console.error('Failed to send report:', error);
+      alert('Failed to send daily report');
+    } finally {
+      setIsSendingReport(false);
+    }
+  };
+
+  const handleResolveAlert = async (chemicalId: number) => {
+    try {
+      // Get active alerts for this chemical and resolve them
+      const alerts = await stockAPI.getAlerts();
+      const chemicalAlerts = alerts.filter((alert: any) => 
+        alert.chemical_id === chemicalId && !alert.is_resolved
+      );
+      
+      for (const alert of chemicalAlerts) {
+        await stockAPI.resolveAlert(alert.id);
+      }
+      
+      // Reload data
+      loadDashboardData();
+    } catch (error) {
+      console.error('Failed to resolve alert:', error);
     }
   };
 
@@ -81,42 +118,133 @@ export default function DashboardPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-96">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <AlertsPanel />
-
-      {/* Welcome Header */}
-      <div className="card p-6 bg-gradient-to-r from-primary-500 to-primary-600 text-white">
+    <div className="space-y-6 p-6">
+      {/* Welcome Header with Actions */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-6 bg-gradient-to-r from-blue-500 to-blue-600 text-white">
         <div className="flex justify-between items-start">
-          <div>
+          <div className="flex-1">
             <h1 className="text-3xl font-bold mb-2">
               Welcome back, {user?.full_name || user?.email}!
             </h1>
-            <p className="text-primary-100">
+            <p className="text-blue-100 mb-4">
               {summary ? `Managing ${summary.total_chemicals} chemicals in inventory` : 'Loading inventory...'}
             </p>
+            <div className="flex gap-3">
+              <button
+                onClick={loadDashboardData}
+                className="px-4 py-2 bg-blue-400 hover:bg-blue-300 text-blue-900 rounded-lg font-medium transition-colors flex items-center"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Refresh
+              </button>
+              
+              {user?.role === 'admin' && (
+                <button
+                  onClick={handleSendDailyReport}
+                  disabled={isSendingReport}
+                  className="px-4 py-2 bg-white hover:bg-gray-100 text-blue-600 rounded-lg font-medium transition-colors flex items-center disabled:opacity-50"
+                >
+                  {isSendingReport ? (
+                    <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <Mail className="h-4 w-4 mr-2" />
+                  )}
+                  Send Daily Report
+                </button>
+              )}
+            </div>
           </div>
-          <Beaker className="h-12 w-12 text-primary-200" />
+          <Beaker className="h-12 w-12 text-blue-200" />
         </div>
       </div>
+
+      {/* Enhanced Summary Cards */}
+      {summary && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-6">
+            <div className="flex items-center">
+              <div className="p-3 bg-blue-100 dark:bg-blue-900 rounded-lg">
+                <Package className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Total Chemicals</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {summary.total_chemicals}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-6">
+            <div className="flex items-center">
+              <div className="p-3 bg-red-100 dark:bg-red-900 rounded-lg">
+                <AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Low Stock</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {summary.low_stock_count}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-6">
+            <div className="flex items-center">
+              <div className="p-3 bg-green-100 dark:bg-green-900 rounded-lg">
+                <TrendingUp className="h-6 w-6 text-green-600 dark:text-green-400" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Total Quantity</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {Math.round(summary.total_quantity)}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">units</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-6">
+            <div className="flex items-center">
+              <div className="p-3 bg-orange-100 dark:bg-orange-900 rounded-lg">
+                <BarChart3 className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Low Stock %</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {summary.low_stock_percentage.toFixed(1)}%
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {quickActions.map((action) => {
           const Icon = action.icon;
+          const colorClasses = {
+            blue: 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400',
+            green: 'bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400',
+            orange: 'bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-400',
+            purple: 'bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-400'
+          };
+          
           return (
             <Link
               key={action.title}
               href={action.href}
-              className="card p-6 hover:shadow-lg transition-shadow group"
+              className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-6 hover:shadow-lg transition-shadow group"
             >
-              <div className={`p-3 bg-${action.color}-100 dark:bg-${action.color}-900 rounded-lg w-fit mb-4 group-hover:scale-110 transition-transform`}>
-                <Icon className={`h-6 w-6 text-${action.color}-600 dark:text-${action.color}-400`} />
+              <div className={`p-3 ${colorClasses[action.color as keyof typeof colorClasses]} rounded-lg w-fit mb-4 group-hover:scale-110 transition-transform`}>
+                <Icon className="h-6 w-6" />
               </div>
               <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
                 {action.title}
@@ -124,7 +252,7 @@ export default function DashboardPage() {
               <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
                 {action.description}
               </p>
-              <div className="flex items-center text-sm font-medium text-primary-600 dark:text-primary-400">
+              <div className="flex items-center text-sm font-medium text-blue-600 dark:text-blue-400">
                 Get started
                 <ArrowRight className="h-4 w-4 ml-1 group-hover:translate-x-1 transition-transform" />
               </div>
@@ -135,14 +263,14 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Chemicals */}
-        <div className="card p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white">
               Recent Chemicals
             </h2>
             <Link
               href="/dashboard/search"
-              className="text-primary-600 hover:text-primary-700 text-sm font-medium"
+              className="text-blue-600 hover:text-blue-700 text-sm font-medium"
             >
               View all
             </Link>
@@ -166,19 +294,30 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Low Stock Alerts */}
-        <div className="card p-6">
+        {/* Enhanced Low Stock Alerts */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-red-500" />
-              Low Stock Alerts
-            </h2>
-            <Link
-              href="/dashboard/stock"
-              className="text-primary-600 hover:text-primary-700 text-sm font-medium"
-            >
-              View all
-            </Link>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-red-500" />
+                Low Stock Alerts
+              </h2>
+              <p className="text-gray-600 dark:text-gray-300 mt-1 text-sm">
+                Chemicals that need immediate attention
+              </p>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <span className="px-3 py-1 bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 rounded-full text-sm font-medium">
+                {lowStockChemicals.length} alerts
+              </span>
+              <Link
+                href="/dashboard/stock"
+                className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+              >
+                View all
+              </Link>
+            </div>
           </div>
 
           {lowStockChemicals.length === 0 ? (
@@ -188,43 +327,42 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {lowStockChemicals.map((chemical) => (
-                <ChemicalCard
-                  key={chemical.id}
-                  chemical={chemical}
-                  showActions={false}
-                />
+              {lowStockChemicals.slice(0, 3).map((chemical) => (
+                <div key={chemical.id} className="relative">
+                  <ChemicalCard
+                    chemical={chemical}
+                    showActions={false}
+                  />
+                  {user?.role === 'admin' && (
+                    <button
+                      onClick={() => handleResolveAlert(chemical.id)}
+                      className="absolute top-2 right-2 p-1 bg-green-500 hover:bg-green-600 text-white rounded-full transition-colors"
+                      title="Mark as resolved"
+                    >
+                      <RefreshCw className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
               ))}
             </div>
           )}
         </div>
       </div>
 
-      {/* System Status */}
-      <div className="card p-6">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-          System Status
-        </h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-          <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-            <div className="text-2xl font-bold text-green-600">{summary?.total_chemicals || 0}</div>
-            <div className="text-green-600">Total Chemicals</div>
-          </div>
-          <div className="text-center p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
-            <div className="text-2xl font-bold text-red-600">{summary?.low_stock_count || 0}</div>
-            <div className="text-red-600">Low Stock</div>
-          </div>
-          <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-            <div className="text-2xl font-bold text-blue-600">{Math.round(summary?.total_quantity || 0)}</div>
-            <div className="text-blue-600">Total Quantity</div>
-          </div>
-          <div className="text-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-            <div className="text-2xl font-bold text-purple-600">
-              {summary ? `${summary.low_stock_percentage.toFixed(1)}%` : '0%'}
-            </div>
-            <div className="text-purple-600">Low Stock %</div>
-          </div>
-        </div>
+      {/* Stock Management Tips */}
+      <div className="rounded-lg shadow-md border border-blue-200 dark:border-blue-800 p-6 bg-blue-50 dark:bg-blue-900/20">
+        <h3 className="text-lg font-medium text-blue-900 dark:text-blue-100 mb-3">
+          💡 Stock Management Tips
+        </h3>
+        <ul className="text-blue-800 dark:text-blue-200 space-y-2 text-sm">
+          <li>• Set appropriate trigger levels based on usage patterns</li>
+          <li>• Regularly review and update stock quantities</li>
+          <li>• Consider lead times when reordering chemicals</li>
+          <li>• Maintain safety stock for critical reagents</li>
+          {user?.role === 'admin' && (
+            <li>• Configure SMTP settings for email notifications</li>
+          )}
+        </ul>
       </div>
     </div>
   );
