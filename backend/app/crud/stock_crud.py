@@ -1,11 +1,11 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import func  # Import func for SQLAlchemy 2.0 compatibility
+from sqlalchemy import func
 from typing import List, Optional
 import logging
 from datetime import datetime
 
-from app.models import Stock, Chemical, Alert
-from app.schemas import StockUpdate, AlertCreate
+from app.models import Stock, Chemical, Alert, UsageHistory
+from app.schemas import StockUpdate, AlertCreate, UsageHistoryCreate
 from app.utils.notifications import check_and_notify_low_stock
 
 logger = logging.getLogger(__name__)
@@ -94,3 +94,69 @@ def get_stock_summary(db: Session) -> dict:
         "total_quantity": total_quantity,
         "low_stock_percentage": (low_stock_count / total_chemicals * 100) if total_chemicals > 0 else 0
     }
+
+# NEW METHODS FOR COMPREHENSIVE STOCK MANAGEMENT
+
+def get_all_chemicals_with_stock(db: Session, skip: int = 0, limit: int = 100) -> List[Chemical]:
+    """Get all chemicals with their stock and location information"""
+    return db.query(Chemical).options(
+        db.joinedload(Chemical.stock),
+        db.joinedload(Chemical.location),
+        db.joinedload(Chemical.usage_history)
+    ).offset(skip).limit(limit).all()
+
+def record_usage(db: Session, usage_data: UsageHistoryCreate, user_id: int) -> Optional[UsageHistory]:
+    """Record chemical usage and update stock"""
+    # Get current stock
+    db_stock = get_stock(db, usage_data.chemical_id)
+    if not db_stock:
+        return None
+    
+    # Check if enough stock is available
+    if db_stock.current_quantity < usage_data.quantity_used:
+        raise ValueError(f"Insufficient stock. Available: {db_stock.current_quantity} {db_stock.unit}")
+    
+    # Create usage record
+    usage_record = UsageHistory(
+        chemical_id=usage_data.chemical_id,
+        quantity_used=usage_data.quantity_used,
+        unit=usage_data.unit,
+        used_by=user_id,
+        notes=usage_data.notes
+    )
+    db.add(usage_record)
+    
+    # Update stock
+    db_stock.current_quantity -= usage_data.quantity_used
+    db_stock.last_updated = datetime.utcnow()
+    
+    db.commit()
+    db.refresh(usage_record)
+    
+    # Check for low stock alert
+    check_low_stock_alert(db, db_stock)
+    check_and_notify_low_stock(db, usage_data.chemical_id)
+    
+    return usage_record
+
+def get_usage_history(db: Session, chemical_id: int, skip: int = 0, limit: int = 100) -> List[UsageHistory]:
+    """Get usage history for a chemical"""
+    return db.query(UsageHistory).filter(
+        UsageHistory.chemical_id == chemical_id
+    ).order_by(UsageHistory.used_at.desc()).offset(skip).limit(limit).all()
+
+def update_stock_trigger_level(db: Session, chemical_id: int, trigger_level: float) -> Optional[Stock]:
+    """Update the low stock trigger level for a chemical"""
+    db_stock = get_stock(db, chemical_id)
+    if not db_stock:
+        return None
+    
+    db_stock.trigger_level = trigger_level
+    db_stock.last_updated = datetime.utcnow()
+    db.commit()
+    db.refresh(db_stock)
+    
+    # Check if current quantity now triggers an alert
+    check_low_stock_alert(db, db_stock)
+    
+    return db_stock

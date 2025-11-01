@@ -13,6 +13,8 @@ from app.schemas import Chemical as ChemicalSchema, ChemicalCreate, ChemicalUpda
 from app.crud import chemical_crud, stock_crud, msds_crud
 from app.auth.auth import get_current_user, require_admin
 from app.utils.chemical_utils import process_chemical_data, generate_barcode
+from app.services.pubchem_service import pubchem_service
+from app.schemas import PubChemCompound
 
 logger = logging.getLogger(__name__)
 
@@ -335,3 +337,106 @@ def get_chemical_barcode(
         "name": chemical.name,
         "cas_number": chemical.cas_number
     }
+
+
+# --------------------------------------------------------------------
+# Search PubChem by name, SMILES, or CAS
+# --------------------------------------------------------------------
+@router.get("/pubchem/search", response_model=PubChemCompound)
+def search_pubchem(
+    query: str = Query(..., description="Chemical name, SMILES, or CAS number to search"),
+    search_type: str = Query("name", description="Search type: name, smiles, or cas"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Search PubChem for chemical information
+    """
+    try:
+        compound_data = None
+        
+        if search_type == "name":
+            compound_data = pubchem_service.get_compound_by_name(query)
+        elif search_type == "smiles":
+            compound_data = pubchem_service.get_compound_by_smiles(query)
+        elif search_type == "cas":
+            compound_data = pubchem_service.get_compound_by_cas(query)
+        else:
+            raise HTTPException(status_code=400, detail="Invalid search type")
+        
+        if not compound_data:
+            raise HTTPException(status_code=404, detail="Chemical not found in PubChem")
+        
+        # Extract relevant data from PubChem response
+        compound = compound_data.get('PC_Compounds', [{}])[0]
+        props = compound.get('props', [])
+        
+        # Extract basic information
+        cid = compound.get('id', {}).get('id', {}).get('cid')
+        
+        # Extract name, SMILES, formula, etc.
+        name = query if search_type == "name" else None
+        smiles = query if search_type == "smiles" else None
+        cas_number = query if search_type == "cas" else None
+        molecular_formula = None
+        molecular_weight = None
+        
+        for prop in props:
+            urn = prop.get('urn', {})
+            label = urn.get('label', '').lower()
+            value = prop.get('value', {})
+            
+            if 'molecular formula' in label and value.get('sval'):
+                molecular_formula = value['sval']
+            elif 'molecular weight' in label and value.get('fval'):
+                molecular_weight = value['fval']
+            elif 'iupac name' in label and value.get('sval') and not name:
+                name = value['sval']
+            elif 'canonical smiles' in label and value.get('sval') and not smiles:
+                smiles = value['sval']
+            elif 'cas' in label and value.get('sval') and not cas_number:
+                cas_number = value['sval']
+        
+        return PubChemCompound(
+            cid=cid,
+            name=name,
+            smiles=smiles,
+            canonical_smiles=smiles,  # Use the same for simplicity
+            molecular_formula=molecular_formula,
+            molecular_weight=molecular_weight,
+            cas_number=cas_number
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"PubChem search error: {e}")
+        raise HTTPException(status_code=500, detail="Error searching PubChem")
+
+
+# --------------------------------------------------------------------
+# Get safety data from PubChem
+# --------------------------------------------------------------------
+@router.get("/pubchem/safety/{identifier}")
+def get_pubchem_safety_data(
+    identifier: str,
+    identifier_type: str = Query("name", description="Identifier type: name, smiles, or cas"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get safety data from PubChem
+    """
+    try:
+        safety_data = pubchem_service.get_compound_safety_data(identifier, identifier_type)
+        
+        if not safety_data:
+            raise HTTPException(status_code=404, detail="Safety data not found in PubChem")
+        
+        return safety_data
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"PubChem safety data error: {e}")
+        raise HTTPException(status_code=500, detail="Error retrieving safety data")

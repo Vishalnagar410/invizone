@@ -9,6 +9,33 @@ class UserRole(str, Enum):
     ADMIN = "admin"
     VIEWER = "viewer"
 
+# Location Schemas (NEW)
+class LocationBase(BaseModel):
+    name: str
+    room: Optional[str] = None
+    rack: Optional[str] = None
+    shelf: Optional[str] = None
+    position: Optional[str] = None
+    description: Optional[str] = None
+
+class LocationCreate(LocationBase):
+    pass
+
+class LocationUpdate(BaseModel):
+    name: Optional[str] = None
+    room: Optional[str] = None
+    rack: Optional[str] = None
+    shelf: Optional[str] = None
+    position: Optional[str] = None
+    description: Optional[str] = None
+
+class Location(LocationBase):
+    id: int
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
 # User Schemas
 class UserBase(BaseModel):
     email: EmailStr
@@ -36,14 +63,15 @@ class User(UserBase):
     class Config:
         from_attributes = True
 
-# Chemical Schemas
+# Chemical Schemas (UPDATED)
 class ChemicalBase(BaseModel):
     name: str
     cas_number: str
     smiles: str
+    location_id: Optional[int] = None  # NEW
     molecular_formula: Optional[str] = None
-    initial_quantity: Optional[float] = 0.0  # NEW
-    initial_unit: Optional[str] = "g"  # NEW
+    initial_quantity: Optional[float] = 0.0
+    initial_unit: Optional[str] = "g"
 
 class ChemicalCreate(ChemicalBase):
     pass
@@ -52,13 +80,14 @@ class ChemicalUpdate(BaseModel):
     name: Optional[str] = None
     cas_number: Optional[str] = None
     smiles: Optional[str] = None
+    location_id: Optional[int] = None  # NEW
     initial_quantity: Optional[float] = None
     initial_unit: Optional[str] = None
 
 class Chemical(ChemicalBase):
     id: int
-    unique_id: str  # NEW
-    barcode: str  # NEW
+    unique_id: str
+    barcode: str
     canonical_smiles: str
     inchikey: str
     molecular_weight: Optional[float] = None
@@ -83,6 +112,25 @@ class StockUpdate(StockBase):
 class Stock(StockBase):
     chemical_id: int
     last_updated: datetime
+    
+    class Config:
+        from_attributes = True
+
+# Usage History Schemas (NEW)
+class UsageHistoryBase(BaseModel):
+    quantity_used: float
+    unit: str
+    notes: Optional[str] = None
+
+class UsageHistoryCreate(UsageHistoryBase):
+    chemical_id: int
+
+class UsageHistory(UsageHistoryBase):
+    id: int
+    chemical_id: int
+    used_by: int
+    used_at: datetime
+    user: Optional[User] = None
     
     class Config:
         from_attributes = True
@@ -129,6 +177,8 @@ class Alert(AlertBase):
 class ChemicalWithStock(Chemical):
     stock: Optional[Stock] = None
     msds: Optional[MSDS] = None
+    location: Optional[Location] = None  # NEW
+    usage_history: List[UsageHistory] = []  # NEW
 
 class Token(BaseModel):
     access_token: str
@@ -167,6 +217,16 @@ class BarcodeData(BaseModel):
     name: str
     cas_number: str
 
+# PubChem Response Schema (NEW)
+class PubChemCompound(BaseModel):
+    cid: Optional[int] = None
+    name: Optional[str] = None
+    smiles: Optional[str] = None
+    canonical_smiles: Optional[str] = None
+    molecular_formula: Optional[str] = None
+    molecular_weight: Optional[float] = None
+    cas_number: Optional[str] = None
+
 # Export all schemas
 __all__ = [
     "User", "UserCreate", "UserUpdate", "PasswordUpdate", "UserRole",
@@ -176,5 +236,7 @@ __all__ = [
     "Alert", "AlertCreate",
     "Token", "TokenData",
     "HazardSummary", "StockSummary",
-    "BarcodeData"  # NEW
+    "BarcodeData", "PubChemCompound",
+    "Location", "LocationCreate", "LocationUpdate",  # NEW
+    "UsageHistory", "UsageHistoryCreate"  # NEW
 ]

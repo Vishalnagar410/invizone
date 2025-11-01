@@ -1,4 +1,3 @@
-# backend/app/models/__init__.py
 """
 Database Models Package
 Contains all SQLAlchemy models for the application.
@@ -44,10 +43,30 @@ class User(Base):
 
     # Relationships
     chemicals = relationship("Chemical", back_populates="creator")
+    usage_records = relationship("UsageHistory", back_populates="user")
 
 
 # -----------------------------------------
-# CHEMICAL TABLE
+# LOCATION TABLE (NEW)
+# -----------------------------------------
+class Location(Base):
+    __tablename__ = "locations"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False)  # e.g., "Storage Room A"
+    room = Column(String(100))  # e.g., "Lab 101"
+    rack = Column(String(100))  # e.g., "Rack 3"
+    shelf = Column(String(100))  # e.g., "Shelf 2"
+    position = Column(String(100))  # e.g., "Tray 5"
+    description = Column(Text)
+    created_at = Column(DateTime, default=func.now())
+    
+    # Relationships
+    chemicals = relationship("Chemical", back_populates="location")
+
+
+# -----------------------------------------
+# CHEMICAL TABLE (UPDATED)
 # -----------------------------------------
 class Chemical(Base):
     __tablename__ = "chemicals"
@@ -62,8 +81,9 @@ class Chemical(Base):
     inchikey = Column(String(27), unique=True, index=True)
     molecular_formula = Column(String(100))
     molecular_weight = Column(Float)
-    initial_quantity = Column(Float, default=0.0)  # NEW: Initial quantity
-    initial_unit = Column(String(50), default="g")  # NEW: Initial unit
+    location_id = Column(Integer, ForeignKey("locations.id"), nullable=True)  # NEW
+    initial_quantity = Column(Float, default=0.0)
+    initial_unit = Column(String(50), default="g")
     created_at = Column(DateTime, default=func.now())
     created_by = Column(Integer, ForeignKey("users.id"))
 
@@ -71,6 +91,8 @@ class Chemical(Base):
     creator = relationship("User", back_populates="chemicals")
     stock = relationship("Stock", back_populates="chemical", uselist=False)
     msds = relationship("MSDS", back_populates="chemical")
+    location = relationship("Location", back_populates="chemicals")  # NEW
+    usage_history = relationship("UsageHistory", back_populates="chemical")  # NEW
 
 
 # -----------------------------------------
@@ -87,6 +109,25 @@ class Stock(Base):
 
     # Relationships
     chemical = relationship("Chemical", back_populates="stock")
+
+
+# -----------------------------------------
+# USAGE HISTORY TABLE (NEW)
+# -----------------------------------------
+class UsageHistory(Base):
+    __tablename__ = "usage_history"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    chemical_id = Column(Integer, ForeignKey("chemicals.id"))
+    quantity_used = Column(Float, nullable=False)
+    unit = Column(String(50), nullable=False)
+    used_by = Column(Integer, ForeignKey("users.id"))
+    used_at = Column(DateTime, default=func.now())
+    notes = Column(Text)
+    
+    # Relationships
+    chemical = relationship("Chemical", back_populates="usage_history")
+    user = relationship("User", back_populates="usage_records")
 
 
 # -----------------------------------------
@@ -127,4 +168,4 @@ class Alert(Base):
 # -----------------------------------------
 # EXPORTS
 # -----------------------------------------
-__all__ = ["User", "Chemical", "Stock", "MSDS", "Alert", "UserRole"]
+__all__ = ["User", "Chemical", "Stock", "MSDS", "Alert", "UserRole", "Location", "UsageHistory"]
