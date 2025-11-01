@@ -1,128 +1,86 @@
-# ============================================================
-# 🧠 INVIZONE PROJECT (.gitignore)
-# Frontend: Next.js / Node.js
-# Backend: FastAPI / Python
-# Docker: for production
-# ============================================================
-
-# ============================================================
-# 🚀 FRONTEND (Next.js)
-# ============================================================
-frontend/node_modules/
-frontend/.next/
-frontend/out/
-frontend/.turbo/
-frontend/dist/
-frontend/.pnp/
-frontend/.pnp.js
-frontend/npm-debug.log*
-frontend/yarn-debug.log*
-frontend/yarn-error.log*
-frontend/.env
-frontend/.env.*
-frontend/coverage/
-frontend/.vercel/
-frontend/.cache/
-frontend/.DS_Store
-frontend/Thumbs.db
-
-# Keep lock file for reproducible builds
-!frontend/package-lock.json
-
-# ============================================================
-# 🧬 BACKEND (Python / FastAPI)
-# ============================================================
-backend/__pycache__/
-backend/**/*.pyc
-backend/**/*.pyo
-backend/**/*.pyd
-backend/.pytest_cache/
-backend/.mypy_cache/
-backend/venv/
-backend/.venv/
-backend/env/
-backend/.env
-backend/.env.*
-backend/*.db
-backend/*.sqlite3
-backend/*.log
-backend/tmp/
-backend/*.egg-info/
-backend/build/
-backend/dist/
-backend/.ruff_cache/
-
-# ============================================================
-# 🐳 DOCKER
-# ============================================================
-docker-compose.override.yml
-Dockerfile.dev
-**/data/
-**/volumes/
-**/cache/
-**/tmp/
-**/.dockerignore
-
-# ============================================================
-# ⚙️ ENVIRONMENTS / VIRTUAL ENVS
-# ============================================================
-venv/
-.env/
-ENV/
-env.bak/
-venv.bak/
-
-# ============================================================
-# 🧩 LARGE FILES (Models / Docking / ML Outputs)
-# ============================================================
-*.pkl
-*.pt
-*.h5
-*.ckpt
-*.zip
-*.tar
-*.gz
-*.pdb
-*.sdf
-*.mol2
-*.csv
-*.json
-*.npz
-
-# ============================================================
-# 💻 IDE / OS SPECIFIC
-# ============================================================
-.vscode/
-.idea/
+# ===============================
+# Global settings
+# ===============================
 .DS_Store
-Thumbs.db
-ehthumbs.db
-Icon?
-Desktop.ini
-
-# ============================================================
-# 🧪 TEST / BUILD ARTIFACTS
-# ============================================================
-dist/
-build/
-*.egg-info/
 *.log
-coverage/
-htmlcov/
-.tox/
-.nox/
-.cache/
-.pytest_cache/
-.coverage
-*.cover
-*.py.cover
-.hypothesis/
-
-# ============================================================
-# 🧠 MISC
-# ============================================================
 *.tmp
 *.bak
 *.swp
-*.old
-*.orig
+*.swo
+*.sqlite3
+__pycache__/
+*.pyc
+
+# ===============================
+# Virtual environments
+# ===============================
+venv/
+env/
+backend/venv/
+backend/env/
+
+# ===============================
+# Python cache & build artifacts
+# ===============================
+*.egg-info/
+*.egg
+*.pyo
+*.pyd
+.mypy_cache/
+.pytest_cache/
+dist/
+build/
+
+# ===============================
+# FastAPI / Backend specific
+# ===============================
+backend/__pycache__/
+backend/.mypy_cache/
+backend/.pytest_cache/
+backend/__pycache__/
+backend/.coverage
+
+# ===============================
+# Node / Frontend specific
+# ===============================
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.vercel/
+frontend/.env.local
+frontend/.env.production
+frontend/.eslintcache
+
+# ===============================
+# Environment files
+# ===============================
+.env
+.env.*
+!env.example
+!.env.example
+backend/.env
+backend/.env.*
+
+# ===============================
+# Docker
+# ===============================
+*.pid
+*.seed
+*.pid.lock
+docker-compose.override.yml
+.docker/
+*.tar
+
+# ===============================
+# IDE / Editor specific
+# ===============================
+.vscode/
+.idea/
+*.code-workspace
+
+# ===============================
+# OS generated files
+# ===============================
+Thumbs.db
+ehthumbs.db
+desktop.ini
