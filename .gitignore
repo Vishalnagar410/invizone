@@ -1,164 +1,128 @@
 # ============================================================
-# 🧠 INVIZONE PROJECT GITIGNORE (Frontend + Backend)
+# 🧠 INVIZONE PROJECT (.gitignore)
+# Frontend: Next.js / Node.js
+# Backend: FastAPI / Python
+# Docker: for production
 # ============================================================
 
 # ============================================================
-# ⚙️ PYTHON BACKEND (FastAPI / RDKit / AutoDock / etc.)
+# 🚀 FRONTEND (Next.js)
 # ============================================================
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.turbo/
+frontend/dist/
+frontend/.pnp/
+frontend/.pnp.js
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/.env
+frontend/.env.*
+frontend/coverage/
+frontend/.vercel/
+frontend/.cache/
+frontend/.DS_Store
+frontend/Thumbs.db
 
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
+# Keep lock file for reproducible builds
+!frontend/package-lock.json
 
-# C extensions
-*.so
-
-# Distribution / packaging
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py.cover
-.hypothesis/
-.pytest_cache/
-cover/
-
-# Flask / Django
-instance/
-.webassets-cache
-*.log
-db.sqlite3
-db.sqlite3-journal
-
-# Environments
-.env
-.envrc
-.venv
-venv/
-ENV/
-env/
-env.bak/
-venv.bak/
-backend/.env
-backend/.venv/
-backend/venv/
-backend/env/
+# ============================================================
+# 🧬 BACKEND (Python / FastAPI)
+# ============================================================
 backend/__pycache__/
 backend/**/*.pyc
 backend/**/*.pyo
 backend/**/*.pyd
-backend/*.pyc
-backend/.mypy_cache/
 backend/.pytest_cache/
-backend/tmp/
+backend/.mypy_cache/
+backend/venv/
+backend/.venv/
+backend/env/
+backend/.env
+backend/.env.*
 backend/*.db
 backend/*.sqlite3
 backend/*.log
-backend/*.pkl
-backend/*.pt
-backend/*.zip
-backend/*.tar
-backend/*.gz
-backend/*.pdb
-backend/*.sdf
-backend/*.mol2
-backend/*.csv
-backend/*.json
+backend/tmp/
+backend/*.egg-info/
+backend/build/
+backend/dist/
+backend/.ruff_cache/
 
 # ============================================================
-# 🚀 FRONTEND (Next.js / React / Node.js)
+# 🐳 DOCKER
 # ============================================================
-
-# dependencies
-frontend/node_modules/
-node_modules/
-frontend/.pnp/
-frontend/.pnp.js
-
-# build output
-.next/
-frontend/.next/
-out/
-frontend/out/
-frontend/dist/
-dist/
-build/
-
-# misc logs and caches
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-frontend/npm-debug.log*
-frontend/yarn-debug.log*
-frontend/yarn-error.log*
-
-# local env files
-frontend/.env
-frontend/.env.local
-frontend/.env.development
-frontend/.env.production
-
-# TypeScript cache
-frontend/*.tsbuildinfo
-*.tsbuildinfo
-
-# editor / system files
-frontend/.DS_Store
-frontend/Thumbs.db
+docker-compose.override.yml
+Dockerfile.dev
+**/data/
+**/volumes/
+**/cache/
+**/tmp/
+**/.dockerignore
 
 # ============================================================
-# 🧩 SHARED / GENERAL CONFIGS
+# ⚙️ ENVIRONMENTS / VIRTUAL ENVS
 # ============================================================
+venv/
+.env/
+ENV/
+env.bak/
+venv.bak/
 
-# IDE / Editor
-.vscode/
-.idea/
-*.iml
-
-# System files
-.DS_Store
-Thumbs.db
-
-# Misc binary / cache files
-*.zip
-*.tar
-*.gz
+# ============================================================
+# 🧩 LARGE FILES (Models / Docking / ML Outputs)
+# ============================================================
 *.pkl
 *.pt
 *.h5
 *.ckpt
+*.zip
+*.tar
+*.gz
+*.pdb
+*.sdf
+*.mol2
+*.csv
+*.json
+*.npz
 
-# Jupyter / notebooks
-.ipynb_checkpoints/
+# ============================================================
+# 💻 IDE / OS SPECIFIC
+# ============================================================
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Icon?
+Desktop.ini
 
-# Build ar
+# ============================================================
+# 🧪 TEST / BUILD ARTIFACTS
+# ============================================================
+dist/
+build/
+*.egg-info/
+*.log
+coverage/
+htmlcov/
+.tox/
+.nox/
+.cache/
+.pytest_cache/
+.coverage
+*.cover
+*.py.cover
+.hypothesis/
+
+# ============================================================
+# 🧠 MISC
+# ============================================================
+*.tmp
+*.bak
+*.swp
+*.old
+*.orig
