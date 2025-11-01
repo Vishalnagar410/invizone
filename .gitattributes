@@ -1,0 +1,23 @@
+# ============================================================
+# ⚙️ GIT ATTRIBUTES — HANDLE LARGE / BINARY FILES WITH LFS
+# ============================================================
+
+# Model files
+*.pt filter=lfs diff=lfs merge=lfs
+*.pkl filter=lfs diff=lfs merge=lfs
+*.ckpt filter=lfs diff=lfs merge=lfs
+*.h5 filter=lfs diff=lfs merge=lfs
+
+# Docking and 3D structures
+*.pdb filter=lfs diff=lfs merge=lfs
+*.sdf filter=lfs diff=lfs merge=lfs
+*.mol2 filter=lfs diff=lfs merge=lfs
+
+# Compressed files
+*.zip filter=lfs diff=lfs merge=lfs
+*.tar filter=lfs diff=lfs merge=lfs
+*.gz filter=lfs diff=lfs merge=lfs
+
+# ============================================================
+# ✅ END OF FILE
+# ============================================================
