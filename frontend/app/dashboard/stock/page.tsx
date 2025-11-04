@@ -2,162 +2,181 @@
 
 import { useState, useEffect } from 'react';
 import { ChemicalWithStock } from '@/types';
-import { chemicalsAPI, stockAPI } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { useWebSocket } from '@/hooks/useWebSocket';
 import { ChemicalStockTable } from '../../components/chemical-stock-table';
-import { RefreshCw, Package, AlertTriangle, MapPin } from 'lucide-react';
+import { RefreshCw, Bell, Wifi, WifiOff } from 'lucide-react';
 
 export default function StockPage() {
   const [chemicals, setChemicals] = useState<ChemicalWithStock[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string>('');
   const { user } = useAuth();
+  
+  // WebSocket for real-time updates
+  const { isConnected, latestChemical, latestStockAdjustment } = useWebSocket();
 
   const loadChemicals = async () => {
-    setIsLoading(true);
     try {
-      // Use the new endpoint to get all chemicals with stock
-      const chemicalsData = await chemicalsAPI.getAll();
+      setIsLoading(true);
+      const response = await fetch('http://localhost:8000/chemicals/', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const chemicalsData = await response.json();
       setChemicals(chemicalsData);
-    } catch (error) {
-      console.error('Failed to load chemicals:', error);
+    } catch (err: any) {
+      setError('Failed to load chemicals');
+      console.error('Error loading chemicals:', err);
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    loadChemicals();
-  }, []);
+    if (user) {
+      loadChemicals();
+    }
+  }, [user]);
 
-  const lowStockCount = chemicals.filter(chemical => 
-    chemical.stock && chemical.stock.current_quantity <= chemical.stock.trigger_level
-  ).length;
+  // Handle real-time chemical updates
+  useEffect(() => {
+    if (latestChemical) {
+      setChemicals(prevChemicals => {
+        const existingIndex = prevChemicals.findIndex(c => c.id === latestChemical.id);
+        
+        if (existingIndex >= 0) {
+          // Update existing chemical
+          const updated = [...prevChemicals];
+          updated[existingIndex] = latestChemical;
+          return updated;
+        } else {
+          // Add new chemical
+          return [latestChemical, ...prevChemicals];
+        }
+      });
+    }
+  }, [latestChemical]);
 
-  const chemicalsWithLocation = chemicals.filter(chemical => chemical.location).length;
+  // Handle real-time stock adjustments
+  useEffect(() => {
+    if (latestStockAdjustment) {
+      setChemicals(prevChemicals => 
+        prevChemicals.map(chemical => 
+          chemical.id === latestStockAdjustment.chemical_id
+            ? {
+                ...chemical,
+                stock: {
+                  ...chemical.stock!,
+                  current_quantity: latestStockAdjustment.after_quantity,
+                  last_updated: new Date().toISOString()
+                }
+              }
+            : chemical
+        )
+      );
+    }
+  }, [latestStockAdjustment]);
 
-  if (isLoading) {
+  if (!user) {
     return (
-      <div className="flex items-center justify-center min-h-96">
-        <RefreshCw className="h-8 w-8 animate-spin text-blue-600" />
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+            Please log in to view stock
+          </h1>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Stock Management</h1>
-          <p className="text-gray-600 dark:text-gray-300 mt-2">
-            Comprehensive view of all chemicals with stock information
-          </p>
-        </div>
-        
-        <div className="flex gap-3">
-          <button
-            onClick={loadChemicals}
-            className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 py-2 px-4 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"
-          >
-            <RefreshCw className="h-4 w-4" />
-            Refresh
-          </button>
-        </div>
-      </div>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-6">
-          <div className="flex items-center">
-            <div className="p-3 bg-blue-100 dark:bg-blue-900 rounded-lg">
-              <Package className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Total Chemicals</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {chemicals.length}
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <main>
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white font-poppins">
+                Chemical Stock
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400 mt-2">
+                Real-time inventory management with live updates
               </p>
             </div>
-          </div>
-        </div>
+            
+            <div className="flex items-center gap-4">
+              {/* WebSocket Status */}
+              <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${
+                isConnected 
+                  ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
+                  : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+              }`}>
+                {isConnected ? (
+                  <Wifi className="h-4 w-4" />
+                ) : (
+                  <WifiOff className="h-4 w-4" />
+                )}
+                <span className="text-sm font-medium">
+                  {isConnected ? 'Live' : 'Offline'}
+                </span>
+              </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-6">
-          <div className="flex items-center">
-            <div className="p-3 bg-red-100 dark:bg-red-900 rounded-lg">
-              <AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Low Stock</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {lowStockCount}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-6">
-          <div className="flex items-center">
-            <div className="p-3 bg-green-100 dark:bg-green-900 rounded-lg">
-              <MapPin className="h-6 w-6 text-green-600 dark:text-green-400" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-300">With Location</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {chemicalsWithLocation}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-6">
-          <div className="flex items-center">
-            <div className="p-3 bg-orange-100 dark:bg-orange-900 rounded-lg">
-              <AlertTriangle className="h-6 w-6 text-orange-600 dark:text-orange-400" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Low Stock %</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {chemicals.length > 0 ? ((lowStockCount / chemicals.length) * 100).toFixed(1) : 0}%
-              </p>
+              <button
+                onClick={loadChemicals}
+                disabled={isLoading}
+                className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md font-medium transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Chemical Stock Table */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-6">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-              Chemical Inventory
-            </h2>
-            <p className="text-gray-600 dark:text-gray-300 mt-1">
-              Manage chemical stock levels, locations, and low stock alerts
-            </p>
+          {/* Real-time Notification Banner */}
+          {latestChemical && (
+            <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
+                <Bell className="h-4 w-4" />
+                <span className="text-sm">
+                  <strong>{latestChemical.name}</strong> was added to inventory
+                </span>
+              </div>
+            </div>
+          )}
+
+          {latestStockAdjustment && (
+            <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+              <div className="flex items-center gap-2 text-green-700 dark:text-green-300">
+                <Bell className="h-4 w-4" />
+                <span className="text-sm">
+                  Stock updated for <strong>{latestStockAdjustment.chemical_name}</strong>: 
+                  {latestStockAdjustment.change_amount > 0 ? '+' : ''}{latestStockAdjustment.change_amount}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {error && (
+            <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+              {error}
+            </div>
+          )}
+
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
+            <ChemicalStockTable 
+              chemicals={chemicals} 
+              isLoading={isLoading}
+              onStockUpdate={loadChemicals}
+            />
           </div>
         </div>
-
-        <ChemicalStockTable 
-          chemicals={chemicals} 
-          onUpdate={loadChemicals}
-        />
-      </div>
-
-      {/* Admin Tips */}
-      {user?.role === 'admin' && (
-        <div className="rounded-lg shadow-md border border-blue-200 dark:border-blue-800 p-6 bg-blue-50 dark:bg-blue-900/20">
-          <h3 className="text-lg font-medium text-blue-900 dark:text-blue-100 mb-3">
-            💡 Admin Management Tips
-          </h3>
-          <ul className="text-blue-800 dark:text-blue-200 space-y-2 text-sm">
-            <li>• Click the edit icon to update stock quantities and trigger levels</li>
-            <li>• Set location information for easy chemical retrieval</li>
-            <li>• Configure low stock alerts based on usage patterns</li>
-            <li>• Regularly update quantities after chemical usage</li>
-            <li>• Use barcodes for quick inventory management</li>
-          </ul>
-        </div>
-      )}
+      </main>
     </div>
   );
 }

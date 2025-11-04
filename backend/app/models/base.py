@@ -4,7 +4,7 @@ Contains the base SQLAlchemy model and common mixins
 """
 
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, Integer, DateTime
+from sqlalchemy import Boolean, Column, Integer, DateTime
 from sqlalchemy.sql import func
 from ..database import Base
 

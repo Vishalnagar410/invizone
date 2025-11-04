@@ -1,4 +1,3 @@
-# backend/app/utils/barcode_utils.py
 import io
 import segno
 from barcode import Code128

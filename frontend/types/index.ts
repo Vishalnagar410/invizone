@@ -10,6 +10,8 @@ export interface User {
 
 export interface Chemical {
   id: number;
+  unique_id: string;
+  barcode: string;
   name: string;
   cas_number: string;
   smiles: string;
@@ -22,6 +24,10 @@ export interface Chemical {
   initial_unit: string;
   created_at: string;
   created_by: number;
+  minimum_quantity?: number;
+  storage_condition?: string;
+  custom_storage_condition?: string;
+  description?: string;
 }
 
 export interface Stock {
@@ -115,7 +121,6 @@ export interface ChemicalWithStock extends Chemical {
   barcode_images: BarcodeImage[];
   stock_adjustments: StockAdjustment[];
   usage_history: UsageHistory[];
-  barcode: string;
 }
 
 export interface Alert {
@@ -146,6 +151,7 @@ export interface RegisterFormData {
   role: 'admin' | 'viewer';
 }
 
+// ENHANCED: Chemical Form Data with new fields
 export interface ChemicalFormData {
   name: string;
   cas_number: string;
@@ -153,6 +159,10 @@ export interface ChemicalFormData {
   location_id?: number;
   initial_quantity?: number;
   initial_unit?: string;
+  minimum_quantity?: number;
+  storage_condition?: string;
+  custom_storage_condition?: string;
+  description?: string;
 }
 
 export interface StockFormData {

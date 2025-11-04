@@ -12,7 +12,7 @@ export default function DashboardLayout({
       <TopNav />
       <AlertsPanel />
       <DebugPanel />
-      <main className="flex-1">
+      <main className="flex-1 pt-16"> {/* Added padding-top for fixed nav */}
         {children}
       </main>
     </div>

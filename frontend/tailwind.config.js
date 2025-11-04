@@ -8,18 +8,41 @@ module.exports = {
   darkMode: 'class',
   theme: {
     extend: {
+      fontFamily: {
+        poppins: ['var(--font-poppins)', 'system-ui', 'sans-serif'],
+        inter: ['var(--font-inter)', 'system-ui', 'sans-serif'],
+      },
       colors: {
+        // New Color Palette
+        'midnight-blue': '#0C2B4E',
+        'dark-blue': '#1A3D64', 
+        'cyan-blue': '#1D546C',
+        'light-gray': '#F4F4F4',
+        
+        // Brand colors with new palette
         primary: {
           50: '#f0f9ff',
           100: '#e0f2fe',
           200: '#bae6fd',
           300: '#7dd3fc',
           400: '#38bdf8',
-          500: '#0ea5e9',
-          600: '#0284c7',
-          700: '#0369a1',
+          500: '#1D546C', // Cyan Blue
+          600: '#1A3D64', // Dark Blue
+          700: '#0C2B4E', // Midnight Blue
           800: '#075985',
           900: '#0c4a6e',
+        },
+        cyan: {
+          50: '#f0fdff',
+          100: '#ccf7ff',
+          200: '#99eeff',
+          300: '#66e0ff',
+          400: '#33ceff',
+          500: '#1D546C', // Cyan Blue
+          600: '#1A3D64', // Dark Blue
+          700: '#0C2B4E', // Midnight Blue
+          800: '#006699',
+          900: '#004d66',
         },
         chemical: {
           50: '#f0fdf4',
@@ -32,11 +55,18 @@ module.exports = {
           700: '#15803d',
           800: '#166534',
           900: '#14532d',
+        },
+        // Alert colors
+        alert: {
+          amber: '#FFB547',
+          red: '#ef4444',
+          green: '#22c55e',
         }
       },
       animation: {
         'fade-in': 'fadeIn 0.5s ease-in-out',
         'slide-up': 'slideUp 0.3s ease-out',
+        'pulse-slow': 'pulse 3s infinite',
       },
       keyframes: {
         fadeIn: {
@@ -47,6 +77,11 @@ module.exports = {
           '0%': { transform: 'translateY(10px)', opacity: '0' },
           '100%': { transform: 'translateY(0)', opacity: '1' },
         },
+      },
+      backgroundImage: {
+        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+        'gradient-conic': 'conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))',
+        'chemical-pattern': "url('/chemical-pattern.svg')",
       },
     },
   },

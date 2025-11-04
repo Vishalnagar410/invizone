@@ -1,4 +1,3 @@
-# backend/app/api/barcodes.py - NEW FILE
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import List, Optional

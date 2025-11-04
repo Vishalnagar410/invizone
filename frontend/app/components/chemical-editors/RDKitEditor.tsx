@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useRDKit, useRDKitUtils } from '@/hooks/useRDKit';
+import { useRDKit } from '@/hooks/useRDKit';
 import { Loader2, Download, Upload, CheckCircle, XCircle } from 'lucide-react';
 
 interface RDKitEditorProps {
@@ -22,7 +22,6 @@ export function RDKitEditor({
   height = 300
 }: RDKitEditorProps) {
   const { rdkit, loading, error } = useRDKit();
-  const { validateSmiles, getCanonicalSmiles, generateStructureSVG } = useRDKitUtils();
   const [currentSmiles, setCurrentSmiles] = useState(initialSmiles);
   const [isValid, setIsValid] = useState<boolean | null>(null);
   const [validationMessage, setValidationMessage] = useState('');
@@ -44,6 +43,44 @@ export function RDKitEditor({
       setValidationMessage('');
     }
   }, [rdkit, currentSmiles]);
+
+  const validateSmiles = (smiles: string): boolean => {
+    if (!rdkit) return false;
+    try {
+      const mol = rdkit.get_mol(smiles);
+      const isValid = mol?.is_valid?.() || false;
+      mol?.delete?.();
+      return isValid;
+    } catch {
+      return false;
+    }
+  };
+
+  const getCanonicalSmiles = (smiles: string): string => {
+    if (!rdkit) return smiles;
+    try {
+      const mol = rdkit.get_mol(smiles);
+      const canonical = mol?.get_canonical_smiles?.() || smiles;
+      mol?.delete?.();
+      return canonical;
+    } catch {
+      return smiles;
+    }
+  };
+
+  const generateStructureSVG = (smiles: string, width: number = 300, height: number = 300): string => {
+    if (!rdkit) {
+      return `<div style="width:${width}px;height:${height}px;display:flex;align-items:center;justify-content:center;border:1px dashed #ccc;color:#666;">RDKit not loaded</div>`;
+    }
+    try {
+      const mol = rdkit.get_mol(smiles);
+      const svg = mol?.get_svg?.(width, height) || `<div style="width:${width}px;height:${height}px;display:flex;align-items:center;justify-content:center;border:1px dashed #ccc;color:#666;">Render failed</div>`;
+      mol?.delete?.();
+      return svg;
+    } catch {
+      return `<div style="width:${width}px;height:${height}px;display:flex;align-items:center;justify-content:center;border:1px dashed #ccc;color:#666;">Render failed</div>`;
+    }
+  };
 
   const validateAndRender = async (smiles: string) => {
     if (!smiles.trim()) {

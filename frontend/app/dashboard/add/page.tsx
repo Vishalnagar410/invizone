@@ -1,11 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { DashboardNav } from '../../components/dashboard-nav';
-import { AlertsPanel } from '../../components/alerts-panel';
-import { DebugPanel } from '../../components/debug-panel';
 import { CSVUpload } from '../../components/csv-upload';
-import { ChemicalForm } from '../../components/chemical-form';
+import { EnhancedChemicalForm } from '../../components/enhanced-chemical-form';
 import { Upload, Beaker } from 'lucide-react';
 
 export default function AddChemicalPage() {
@@ -18,14 +15,10 @@ export default function AddChemicalPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <DashboardNav />
-      <AlertsPanel />
-      <DebugPanel />
-      
-      <main className="lg:pl-64">
+      <main>
         <div className="p-6">
           <div className="mb-6">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white font-poppins">
               Add Chemicals
             </h1>
             <p className="text-gray-600 dark:text-gray-400 mt-2">
@@ -41,7 +34,7 @@ export default function AddChemicalPage() {
                   onClick={() => setActiveTab('single')}
                   className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
                     activeTab === 'single'
-                      ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                      ? 'border-cyan-500 text-cyan-600 dark:text-cyan-400'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
                   }`}
                 >
@@ -52,7 +45,7 @@ export default function AddChemicalPage() {
                   onClick={() => setActiveTab('bulk')}
                   className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
                     activeTab === 'bulk'
-                      ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                      ? 'border-cyan-500 text-cyan-600 dark:text-cyan-400'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
                   }`}
                 >
@@ -64,16 +57,15 @@ export default function AddChemicalPage() {
           </div>
 
           {/* Tab Content */}
-          <div className="max-w-4xl">
+          <div className="max-w-6xl">
             {activeTab === 'single' ? (
               <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
                 <div className="p-6">
-                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white font-poppins">
                     Add Single Chemical
                   </h2>
-                  <ChemicalForm 
+                  <EnhancedChemicalForm 
                     onSuccess={() => {
-                      // Handle success (show notification, reset form, etc.)
                       console.log('Chemical added successfully');
                     }}
                   />
@@ -82,7 +74,7 @@ export default function AddChemicalPage() {
             ) : (
               <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
                 <div className="p-6">
-                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white font-poppins">
                     Bulk Upload Chemicals
                   </h2>
                   <CSVUpload onUploadComplete={handleUploadComplete} />

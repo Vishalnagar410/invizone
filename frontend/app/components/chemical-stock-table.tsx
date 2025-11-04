@@ -2,13 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { ChemicalWithStock } from '@/types';
-import { chemicalsAPI, stockAPI, locationsAPI, barcodesAPI, stockAdjustmentsAPI } from '@/lib/api';
+import { chemicalsAPI, stockAPI, locationsAPI, barcodesAPI } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { 
-  Search, Filter, Edit, Save, X, AlertTriangle, 
+  Search, Edit, Save, X, AlertTriangle, 
   Package, Beaker, MapPin, Barcode, Hash, Eye,
-  MinusCircle, History, QrCode, Download, MoreVertical,
-  ChevronDown, ChevronUp
+  MinusCircle, History, QrCode, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { ChemicalUsageModal } from './chemical-usage-modal';
 import { ChemicalDetailsModal } from './chemical-details-modal';
@@ -16,10 +15,11 @@ import { StockAdjustmentModal } from './stock-adjustment-modal';
 
 interface ChemicalStockTableProps {
   chemicals: ChemicalWithStock[];
-  onUpdate: () => void;
+  isLoading?: boolean;
+  onStockUpdate?: () => void;
 }
 
-export function ChemicalStockTable({ chemicals, onUpdate }: ChemicalStockTableProps) {
+export function ChemicalStockTable({ chemicals, isLoading = false, onStockUpdate }: ChemicalStockTableProps) {
   const { user } = useAuth();
   const [filteredChemicals, setFilteredChemicals] = useState<ChemicalWithStock[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -95,35 +95,35 @@ export function ChemicalStockTable({ chemicals, onUpdate }: ChemicalStockTablePr
   };
 
   const handleSave = async (chemicalId: number) => {
-  try {
-    if (editForm.stock) {
-      await stockAPI.update(chemicalId, {
-        current_quantity: editForm.stock.current_quantity,
-        unit: editForm.stock.unit,
-        trigger_level: editForm.stock.trigger_level
-      });
+    try {
+      if (editForm.stock) {
+        await stockAPI.update(chemicalId, {
+          current_quantity: editForm.stock.current_quantity,
+          unit: editForm.stock.unit,
+          trigger_level: editForm.stock.trigger_level
+        });
+      }
+      
+      // Update location if changed - convert null to undefined
+      if (editForm.location_id !== undefined) {
+        await chemicalsAPI.update(chemicalId, {
+          location_id: editForm.location_id || undefined // Convert null to undefined
+        });
+      }
+      
+      setEditingId(null);
+      setEditForm({});
+      onStockUpdate?.();
+    } catch (error) {
+      console.error('Failed to update:', error);
+      alert('Failed to update chemical');
     }
-    
-    // Update location if changed - convert null to undefined
-    if (editForm.location_id !== undefined) {
-      await chemicalsAPI.update(chemicalId, {
-        location_id: editForm.location_id || undefined // Convert null to undefined
-      });
-    }
-    
-    setEditingId(null);
-    setEditForm({});
-    onUpdate();
-  } catch (error) {
-    console.error('Failed to update:', error);
-    alert('Failed to update chemical');
-  }
-};
+  };
 
-  function handleCancel() {
+  const handleCancel = () => {
     setEditingId(null);
     setEditForm({});
-  }
+  };
 
   const handleRecordUsage = (chemical: ChemicalWithStock) => {
     setSelectedChemical(chemical);
@@ -145,7 +145,7 @@ export function ChemicalStockTable({ chemicals, onUpdate }: ChemicalStockTablePr
     try {
       await barcodesAPI.generateBarcodes(chemicalId);
       alert('Barcode generation started. Check back in a moment.');
-      onUpdate(); // Refresh to show barcode status
+      onStockUpdate?.(); // Refresh to show barcode status
     } catch (error) {
       console.error('Failed to generate barcode:', error);
       alert('Failed to generate barcode');
@@ -183,6 +183,10 @@ export function ChemicalStockTable({ chemicals, onUpdate }: ChemicalStockTablePr
     return chemical.stock && chemical.stock.current_quantity <= chemical.stock.trigger_level;
   };
 
+  const isOutOfStock = (chemical: ChemicalWithStock) => {
+    return chemical.stock && chemical.stock.current_quantity <= 0;
+  };
+
   const getLocationString = (chemical: ChemicalWithStock) => {
     if (!chemical.location) return 'Not set';
     
@@ -197,6 +201,29 @@ export function ChemicalStockTable({ chemicals, onUpdate }: ChemicalStockTablePr
     const { storage_conditions, custom_storage_condition } = chemical.location;
     return storage_conditions === 'Custom' ? custom_storage_condition : storage_conditions;
   };
+
+  if (isLoading) {
+    return (
+      <div className="p-8 text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+        <p className="text-gray-600 dark:text-gray-300">Loading chemicals...</p>
+      </div>
+    );
+  }
+
+  if (chemicals.length === 0) {
+    return (
+      <div className="p-8 text-center">
+        <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+          No Chemicals Found
+        </h3>
+        <p className="text-gray-600 dark:text-gray-400">
+          Get started by adding your first chemical to the inventory.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -309,6 +336,7 @@ export function ChemicalStockTable({ chemicals, onUpdate }: ChemicalStockTablePr
                     className={`
                       hover:bg-gray-50 dark:hover:bg-gray-700 
                       ${isLowStock(chemical) ? 'bg-red-50 dark:bg-red-900/10 border-l-4 border-l-red-500' : ''}
+                      ${isOutOfStock(chemical) ? 'bg-red-100 dark:bg-red-900/20 border-l-4 border-l-red-600' : ''}
                     `}
                   >
                     {/* Expand/Collapse Button */}
@@ -621,7 +649,7 @@ export function ChemicalStockTable({ chemicals, onUpdate }: ChemicalStockTablePr
             onClose={() => {
               setShowUsageModal(false);
               setSelectedChemical(null);
-              onUpdate();
+              onStockUpdate?.();
             }}
           />
           
@@ -640,7 +668,7 @@ export function ChemicalStockTable({ chemicals, onUpdate }: ChemicalStockTablePr
             onClose={() => {
               setShowAdjustmentModal(false);
               setSelectedChemical(null);
-              onUpdate();
+              onStockUpdate?.();
             }}
           />
         </>

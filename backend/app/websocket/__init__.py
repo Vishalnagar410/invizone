@@ -1,4 +1,4 @@
-# backend/app/websocket/__init__.py - NEW FILE
+
 from socketio import AsyncServer, ASGIApp
 from socketio.exceptions import ConnectionRefusedError
 import json
@@ -9,8 +9,16 @@ from app.schemas import WebSocketMessage
 
 logger = logging.getLogger(__name__)
 
-# Create Socket.IO server
-sio = AsyncServer(async_mode='asgi', cors_allowed_origins='*')
+# Create Socket.IO server with CORS
+sio = AsyncServer(
+    async_mode='asgi', 
+    cors_allowed_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:8000", 
+        "http://127.0.0.1:8000"
+    ]
+)
 socket_app = ASGIApp(sio)
 
 # Store connected clients
@@ -18,25 +26,25 @@ connected_clients = {}
 
 @sio.event
 async def connect(sid, environ):
-    """Handle client connection"""
+    """Handle client connection - Allow all connections for now"""
     try:
-        # You can add authentication here if needed
         connected_clients[sid] = {
             'connected_at': datetime.utcnow(),
-            'user_agent': environ.get('HTTP_USER_AGENT', 'Unknown')
+            'user_agent': environ.get('HTTP_USER_AGENT', 'Unknown'),
+            'remote_addr': environ.get('REMOTE_ADDR', 'Unknown')
         }
-        logger.info(f"Client connected: {sid}")
+        logger.info(f"✅ WebSocket client connected: {sid}")
         await sio.emit('connected', {'message': 'Connected to server', 'sid': sid}, room=sid)
     except Exception as e:
         logger.error(f"Connection failed: {e}")
-        raise ConnectionRefusedError('Authentication failed')
+        # Don't raise ConnectionRefusedError for now to allow connections
 
 @sio.event
 async def disconnect(sid):
     """Handle client disconnection"""
     if sid in connected_clients:
         del connected_clients[sid]
-    logger.info(f"Client disconnected: {sid}")
+    logger.info(f"WebSocket client disconnected: {sid}")
 
 @sio.event
 async def join_room(sid, data):

@@ -12,7 +12,8 @@ load_dotenv()
 # Import from current package using relative imports
 from .database import engine, get_db
 from .models import Base
-from .api import auth, chemicals, stock, msds, users, reports
+from .api import auth, chemicals, stock, msds, users, reports, locations, barcodes, stock_adjustments
+from .websocket import socket_app
 
 # Create tables
 try:
@@ -22,9 +23,17 @@ except Exception as e:
     print(f"❌ Database table creation failed: {e}")
 
 app = FastAPI(
-    title="SmartChemView API",
-    description="Chemical Search, Structure Editing, and Stock Monitoring",
-    version="1.0.0"
+    title="ReyChemIQ API",
+    description="Smart Chemistry. Intelligent Inventory. - Chemical Inventory and Lab Management System",
+    version="2.0.0",
+    contact={
+        "name": "ReyChemIQ Team",
+        "email": "support@reychemiq.com",
+    },
+    license_info={
+        "name": "MIT License",
+        "url": "https://opensource.org/licenses/MIT",
+    }
 )
 
 # CORS middleware - allow all origins for development
@@ -36,19 +45,28 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routers
+# Include all routers
 app.include_router(auth.router, prefix="/auth", tags=["authentication"])
 app.include_router(users.router, prefix="/users", tags=["users"])
 app.include_router(chemicals.router, prefix="/chemicals", tags=["chemicals"])
 app.include_router(stock.router, prefix="/stock", tags=["stock"])
 app.include_router(msds.router, prefix="/msds", tags=["msds"])
 app.include_router(reports.router, prefix="/reports", tags=["reports"])
+app.include_router(locations.router, prefix="/locations", tags=["locations"])
+app.include_router(barcodes.router, prefix="/barcodes", tags=["barcodes"])
+app.include_router(stock_adjustments.router, prefix="/stock-adjustments", tags=["stock-adjustments"])
+
+# Mount WebSocket app
+app.mount("/ws", socket_app)
 
 @app.get("/")
 async def root():
     return {
-        "message": "SmartChemView API", 
-        "version": "1.0.0",
+        "message": "ReyChemIQ API", 
+        "version": "2.0.0",
+        "tagline": "Smart Chemistry. Intelligent Inventory.",
+        "developers": ["Mann", "Reyaan", "Vishal"],
+        "company": "Invizone",
         "status": "running",
         "docs": "/docs",
         "health": "/health"
@@ -56,13 +74,21 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy", "service": "SmartChemView API"}
+    return {
+        "status": "healthy", 
+        "service": "ReyChemIQ API",
+        "version": "2.0.0"
+    }
 
 # ADD THESE EXACT ENDPOINTS THAT YOUR FRONTEND EXPECTS:
 @app.get("/api/health")
 async def api_health_check():
     """Health check for frontend (matching frontend expectations)"""
-    return {"status": "healthy", "service": "SmartChemView API"}
+    return {
+        "status": "healthy", 
+        "service": "ReyChemIQ API",
+        "version": "2.0.0"
+    }
 
 @app.get("/api/database/health")
 async def api_database_health(db: Session = Depends(get_db)):
@@ -73,7 +99,8 @@ async def api_database_health(db: Session = Depends(get_db)):
         return {
             "status": "healthy", 
             "service": "Database",
-            "database_type": "SQLite" if "sqlite" in str(engine.url) else "MySQL"
+            "database_type": "SQLite" if "sqlite" in str(engine.url) else "MySQL",
+            "system": "ReyChemIQ"
         }
     except Exception as e:
         return {"status": "error", "service": "Database", "error": str(e)}
@@ -81,7 +108,11 @@ async def api_database_health(db: Session = Depends(get_db)):
 @app.get("/api/auth/health")
 async def api_auth_health():
     """Auth service health check for frontend"""
-    return {"status": "healthy", "service": "Auth"}
+    return {
+        "status": "healthy", 
+        "service": "Auth",
+        "system": "ReyChemIQ"
+    }
 
 @app.get("/test-db")
 async def test_db_connection(db: Session = Depends(get_db)):
@@ -94,7 +125,8 @@ async def test_db_connection(db: Session = Depends(get_db)):
         return {
             "database_status": "connected", 
             "test_query": "success",
-            "database_type": "SQLite" if "sqlite" in str(engine.url) else "MySQL"
+            "database_type": "SQLite" if "sqlite" in str(engine.url) else "MySQL",
+            "system": "ReyChemIQ"
         }
     except Exception as e:
         return {"database_status": "error", "error": str(e)}
@@ -104,7 +136,11 @@ async def test_auth_endpoint():
     """
     Test authentication endpoint
     """
-    return {"message": "Auth endpoint is working", "status": "success"}
+    return {
+        "message": "Auth endpoint is working", 
+        "status": "success",
+        "system": "ReyChemIQ"
+    }
 
 @app.get("/debug-db")
 async def debug_database(db: Session = Depends(get_db)):
@@ -125,6 +161,7 @@ async def debug_database(db: Session = Depends(get_db)):
             pass
         
         return {
+            "system": "ReyChemIQ",
             "tables": tables,
             "users_table_exists": "users" in tables,
             "users_count": users_count,
@@ -134,7 +171,10 @@ async def debug_database(db: Session = Depends(get_db)):
         return {"error": str(e)}
 
 if __name__ == "__main__":
-    print("🚀 Starting SmartChemView Backend Server...")
+    print("🚀 Starting ReyChemIQ Backend Server...")
+    print("🏷️  Smart Chemistry. Intelligent Inventory.")
+    print("👨‍💻 Developed by Mann, Reyaan & Vishal")
+    print("🏢 Built by Invizone")
     print("📍 API Documentation: http://localhost:8000/docs")
     print("🔧 Health Check: http://localhost:8000/health")
     print("📊 Database Test: http://localhost:8000/test-db")
@@ -142,6 +182,7 @@ if __name__ == "__main__":
     print("   - http://localhost:8000/api/health")
     print("   - http://localhost:8000/api/database/health")
     print("   - http://localhost:8000/api/auth/health")
+    print("🔌 WebSocket available at: ws://localhost:8000/ws")
     
     uvicorn.run(
         "app.main:app", 

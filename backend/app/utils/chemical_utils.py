@@ -1,4 +1,4 @@
-# backend/app/utils/chemical_utils.py - ENHANCED VERSION
+# backend/app/utils/chemical_utils.py - FIXED VERSION (NO CIRCULAR IMPORTS)
 from rdkit import Chem
 from rdkit.Chem import AllChem, Descriptors
 from rdkit.Chem.inchi import MolToInchiKey

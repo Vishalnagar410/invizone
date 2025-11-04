@@ -1,4 +1,3 @@
-// frontend/lib/api.ts - ENHANCED VERSION
 import axios from 'axios';
 import { 
   AuthTokens, 

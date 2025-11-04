@@ -1,4 +1,3 @@
-# backend/app/api/locations.py - NEW FILE
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -8,7 +7,7 @@ from app.database import get_db
 from app.models import User, Location, Chemical
 from app.schemas import Location as LocationSchema, LocationCreate, LocationUpdate
 from app.auth.auth import get_current_user, require_admin
-from app.websocket import broadcast_location_update  # WebSocket integration
+from app.websocket import broadcast_location_update
 
 router = APIRouter()
 

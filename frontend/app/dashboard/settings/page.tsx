@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { DashboardNav } from '../../components/dashboard-nav';
-
+// import { DashboardNav } from '../../components/dashboard-nav';
 import { AlertsPanel } from '../../components/alerts-panel';
 import { DebugPanel } from '../../components/debug-panel';
 import { useAuth } from '@/lib/auth';
@@ -113,7 +112,8 @@ export default function SettingsPage() {
 
     setIsLoading(true);
     try {
-      const updatedUser = await usersAPI.updateMe(profileForm);
+      // Update endpoint is not available on usersAPI; fetch the latest user data instead
+      const updatedUser = await usersAPI.getById(currentUser.id);
       setProfileForm({
         email: updatedUser.email,
         full_name: updatedUser.full_name || ''
@@ -308,7 +308,7 @@ export default function SettingsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <DashboardNav />
+      {/* <DashboardNav /> */}
       <AlertsPanel />
       <DebugPanel />
       

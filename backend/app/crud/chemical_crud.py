@@ -1,5 +1,5 @@
 # backend/app/crud/chemical_crud.py - ENHANCED VERSION
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_, and_
 from typing import List, Optional
 import logging
@@ -16,12 +16,12 @@ def get_chemical(db: Session, chemical_id: int) -> Optional[Chemical]:
 def get_chemical_with_relationships(db: Session, chemical_id: int) -> Optional[Chemical]:
     """Get chemical with all relationships loaded"""
     return db.query(Chemical).options(
-        db.joinedload(Chemical.stock),
-        db.joinedload(Chemical.location),
-        db.joinedload(Chemical.msds),
-        db.joinedload(Chemical.barcode_images),
-        db.joinedload(Chemical.stock_adjustments),
-        db.joinedload(Chemical.usage_history)
+        joinedload(Chemical.stock),
+        joinedload(Chemical.location),
+        joinedload(Chemical.msds),
+        joinedload(Chemical.barcode_images),
+        joinedload(Chemical.stock_adjustments),
+        joinedload(Chemical.usage_history)
     ).filter(Chemical.id == chemical_id).first()
 
 def get_chemical_by_inchikey(db: Session, inchikey: str) -> Optional[Chemical]:
@@ -57,6 +57,58 @@ def search_chemicals_text(db: Session, query: str, skip: int = 0, limit: int = 1
             Location.room.ilike(f"%{query}%")
         )
     ).offset(skip).limit(limit).all()
+
+def create_chemical_with_data(db: Session, chemical_data: dict, user_id: int, location_id: Optional[int] = None) -> Chemical:
+    """
+    Create chemical from processed data (alternative to ChemicalCreate schema)
+    This is useful when you already have processed chemical data
+    """
+    try:
+        # Check if chemical already exists
+        existing_chemical = get_chemical_by_inchikey(db, chemical_data["inchikey"])
+        if existing_chemical:
+            raise ValueError(f"Chemical already exists with InChIKey: {chemical_data['inchikey']}")
+        
+        # Create chemical object directly from data
+        db_chemical = Chemical(
+            unique_id=chemical_data["unique_id"],
+            barcode=chemical_data["barcode"],
+            name=chemical_data["name"],
+            cas_number=chemical_data["cas_number"],
+            smiles=chemical_data["smiles"],
+            canonical_smiles=chemical_data["canonical_smiles"],
+            inchikey=chemical_data["inchikey"],
+            molecular_formula=chemical_data["molecular_formula"],
+            molecular_weight=chemical_data["molecular_weight"],
+            location_id=location_id,
+            initial_quantity=chemical_data["initial_quantity"],
+            initial_unit=chemical_data["initial_unit"],
+            created_by=user_id
+        )
+        
+        db.add(db_chemical)
+        db.commit()
+        db.refresh(db_chemical)
+        
+        # Check if stock already exists before creating
+        existing_stock = db.query(Stock).filter(Stock.chemical_id == db_chemical.id).first()
+        if not existing_stock:
+            # Create initial stock entry only if it doesn't exist
+            db_stock = Stock(
+                chemical_id=db_chemical.id,
+                current_quantity=chemical_data["initial_quantity"],
+                unit=chemical_data["initial_unit"],
+                trigger_level=10.0
+            )
+            db.add(db_stock)
+            db.commit()
+        
+        return db_chemical
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error creating chemical with data: {e}")
+        raise ValueError(f"Failed to create chemical: {str(e)}")
 
 def create_chemical(db: Session, chemical: ChemicalCreate, user_id: int, location_id: Optional[int] = None) -> Chemical:
     """
@@ -111,15 +163,18 @@ def create_chemical(db: Session, chemical: ChemicalCreate, user_id: int, locatio
         db.commit()
         db.refresh(db_chemical)
         
-        # Create initial stock entry with the initial quantity
-        db_stock = Stock(
-            chemical_id=db_chemical.id,
-            current_quantity=processed_data["initial_quantity"],
-            unit=processed_data["initial_unit"],
-            trigger_level=10.0
-        )
-        db.add(db_stock)
-        db.commit()
+        # Check if stock already exists before creating
+        existing_stock = db.query(Stock).filter(Stock.chemical_id == db_chemical.id).first()
+        if not existing_stock:
+            # Create initial stock entry with the initial quantity
+            db_stock = Stock(
+                chemical_id=db_chemical.id,
+                current_quantity=processed_data["initial_quantity"],
+                unit=processed_data["initial_unit"],
+                trigger_level=10.0
+            )
+            db.add(db_stock)
+            db.commit()
         
         return db_chemical
         
@@ -209,9 +264,9 @@ def get_chemicals_with_stock(db: Session, skip: int = 0, limit: int = 100) -> Li
     Enhanced with location and relationships
     """
     chemicals = db.query(Chemical).options(
-        db.joinedload(Chemical.stock),
-        db.joinedload(Chemical.location),
-        db.joinedload(Chemical.msds)
+        joinedload(Chemical.stock),
+        joinedload(Chemical.location),
+        joinedload(Chemical.msds)
     ).join(Stock).offset(skip).limit(limit).all()
     
     return chemicals
