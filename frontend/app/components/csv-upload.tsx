@@ -20,7 +20,7 @@ interface UploadResults {
 }
 
 interface CSVUploadProps {
-  onUploadComplete?: (results: UploadResults) => void;
+  onUploadComplete?: (results: any[]) => void;
 }
 
 export function CSVUpload({ onUploadComplete }: CSVUploadProps) {

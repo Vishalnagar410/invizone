@@ -1,10 +1,10 @@
-# backend/app/crud/chemical_crud.py
+# backend/app/crud/chemical_crud.py - ENHANCED VERSION
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_
 from typing import List, Optional
 import logging
 
-from app.models import Chemical, Stock, User
+from app.models import Chemical, Stock, User, Location, BarcodeImage, StockAdjustment, UsageHistory
 from app.schemas import ChemicalCreate, ChemicalUpdate
 from app.utils.chemical_utils import process_chemical_data, validate_chemical_structure
 
@@ -12,6 +12,17 @@ logger = logging.getLogger(__name__)
 
 def get_chemical(db: Session, chemical_id: int) -> Optional[Chemical]:
     return db.query(Chemical).filter(Chemical.id == chemical_id).first()
+
+def get_chemical_with_relationships(db: Session, chemical_id: int) -> Optional[Chemical]:
+    """Get chemical with all relationships loaded"""
+    return db.query(Chemical).options(
+        db.joinedload(Chemical.stock),
+        db.joinedload(Chemical.location),
+        db.joinedload(Chemical.msds),
+        db.joinedload(Chemical.barcode_images),
+        db.joinedload(Chemical.stock_adjustments),
+        db.joinedload(Chemical.usage_history)
+    ).filter(Chemical.id == chemical_id).first()
 
 def get_chemical_by_inchikey(db: Session, inchikey: str) -> Optional[Chemical]:
     return db.query(Chemical).filter(Chemical.inchikey == inchikey).first()
@@ -30,21 +41,27 @@ def get_chemicals(db: Session, skip: int = 0, limit: int = 100) -> List[Chemical
 
 def search_chemicals_text(db: Session, query: str, skip: int = 0, limit: int = 100) -> List[Chemical]:
     """
-    Search chemicals by name, CAS number, or SMILES
+    Search chemicals by name, CAS number, SMILES, or location
+    Enhanced with location search
     """
-    return db.query(Chemical).filter(
+    return db.query(Chemical).outerjoin(Location).filter(
         or_(
             Chemical.name.ilike(f"%{query}%"),
             Chemical.cas_number.ilike(f"%{query}%"),
             Chemical.smiles.ilike(f"%{query}%"),
             Chemical.canonical_smiles.ilike(f"%{query}%"),
-            Chemical.molecular_formula.ilike(f"%{query}%")
+            Chemical.molecular_formula.ilike(f"%{query}%"),
+            Location.name.ilike(f"%{query}%"),
+            Location.department.ilike(f"%{query}%"),
+            Location.lab_name.ilike(f"%{query}%"),
+            Location.room.ilike(f"%{query}%")
         )
     ).offset(skip).limit(limit).all()
 
-def create_chemical(db: Session, chemical: ChemicalCreate, user_id: int) -> Chemical:
+def create_chemical(db: Session, chemical: ChemicalCreate, user_id: int, location_id: Optional[int] = None) -> Chemical:
     """
     Create a new chemical with RDKit processing and new fields
+    Enhanced with location support
     """
     try:
         # Process chemical data with RDKit including new fields
@@ -73,7 +90,7 @@ def create_chemical(db: Session, chemical: ChemicalCreate, user_id: int) -> Chem
             from app.utils.chemical_utils import generate_unique_id
             processed_data["unique_id"] = generate_unique_id()
         
-        # Create new chemical with all fields
+        # Create new chemical with all fields including location
         db_chemical = Chemical(
             unique_id=processed_data["unique_id"],
             barcode=processed_data["barcode"],
@@ -84,6 +101,7 @@ def create_chemical(db: Session, chemical: ChemicalCreate, user_id: int) -> Chem
             inchikey=processed_data["inchikey"],
             molecular_formula=processed_data["molecular_formula"],
             molecular_weight=processed_data["molecular_weight"],
+            location_id=location_id,  # NEW: Include location
             initial_quantity=processed_data["initial_quantity"],
             initial_unit=processed_data["initial_unit"],
             created_by=user_id
@@ -116,6 +134,7 @@ def create_chemical(db: Session, chemical: ChemicalCreate, user_id: int) -> Chem
 def update_chemical(db: Session, chemical_id: int, chemical_update: ChemicalUpdate) -> Optional[Chemical]:
     """
     Update chemical information with support for new fields
+    Enhanced with location support
     """
     db_chemical = get_chemical(db, chemical_id)
     if not db_chemical:
@@ -156,17 +175,30 @@ def update_chemical(db: Session, chemical_id: int, chemical_update: ChemicalUpda
 
 def delete_chemical(db: Session, chemical_id: int) -> bool:
     """
-    Delete a chemical and its associated stock
+    Delete a chemical and its associated data
+    Enhanced to delete related records
     """
     db_chemical = get_chemical(db, chemical_id)
     if not db_chemical:
         return False
     
-    # Delete associated stock first (due to foreign key constraint)
-    stock = db.query(Stock).filter(Stock.chemical_id == chemical_id).first()
-    if stock:
-        db.delete(stock)
+    # Delete associated records first (due to foreign key constraints)
+    # Stock adjustments
+    db.query(StockAdjustment).filter(StockAdjustment.chemical_id == chemical_id).delete()
+    # Barcode images
+    db.query(BarcodeImage).filter(BarcodeImage.chemical_id == chemical_id).delete()
+    # Usage history
+    db.query(UsageHistory).filter(UsageHistory.chemical_id == chemical_id).delete()
+    # Stock
+    db.query(Stock).filter(Stock.chemical_id == chemical_id).delete()
+    # MSDS
+    from app.models import MSDS
+    db.query(MSDS).filter(MSDS.chemical_id == chemical_id).delete()
+    # Alerts
+    from app.models import Alert
+    db.query(Alert).filter(Alert.chemical_id == chemical_id).delete()
     
+    # Delete chemical
     db.delete(db_chemical)
     db.commit()
     return True
@@ -174,12 +206,13 @@ def delete_chemical(db: Session, chemical_id: int) -> bool:
 def get_chemicals_with_stock(db: Session, skip: int = 0, limit: int = 100) -> List[Chemical]:
     """
     Get chemicals with their stock information
+    Enhanced with location and relationships
     """
-    chemicals = db.query(Chemical).join(Stock).offset(skip).limit(limit).all()
-    
-    # Ensure we return the complete chemical objects with stock relationship loaded
-    for chemical in chemicals:
-        db.refresh(chemical)
+    chemicals = db.query(Chemical).options(
+        db.joinedload(Chemical.stock),
+        db.joinedload(Chemical.location),
+        db.joinedload(Chemical.msds)
+    ).join(Stock).offset(skip).limit(limit).all()
     
     return chemicals
 
@@ -204,6 +237,12 @@ def get_chemicals_without_stock(db: Session, skip: int = 0, limit: int = 100) ->
     return db.query(Chemical).outerjoin(Stock).filter(
         Stock.chemical_id == None
     ).offset(skip).limit(limit).all()
+
+def get_chemicals_by_location(db: Session, location_id: int, skip: int = 0, limit: int = 100) -> List[Chemical]:
+    """
+    Get chemicals at a specific location
+    """
+    return db.query(Chemical).filter(Chemical.location_id == location_id).offset(skip).limit(limit).all()
 
 def bulk_create_chemicals(db: Session, chemicals: List[ChemicalCreate], user_id: int) -> List[Chemical]:
     """

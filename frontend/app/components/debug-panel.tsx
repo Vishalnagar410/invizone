@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Bug, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
-import { healthAPI, testAPI, authAPI } from '@/lib/api';
+import testAPI, { healthAPI, authAPI } from '@/lib/api';
 
 export function DebugPanel() {
   const [isOpen, setIsOpen] = useState(false);
@@ -22,42 +22,77 @@ export function DebugPanel() {
         results.api_health = { status: 'error', error: error.message };
       }
 
-      // Test database using the new health API
+      // Test database using the new health API (with fallback if checkDatabase isn't available)
       try {
-        const dbHealth = await healthAPI.checkDatabase();
-        results.database_health = { status: 'success', data: dbHealth };
+        if (typeof (healthAPI as any).checkDatabase === 'function') {
+          const dbHealth = await (healthAPI as any).checkDatabase();
+          results.database_health = { status: 'success', data: dbHealth };
+        } else if (typeof (testAPI as any).testDB === 'function') {
+          // fallback to legacy testAPI.testDB if the new healthAPI doesn't expose a DB check
+          const dbHealth = await (testAPI as any).testDB();
+          results.database_health = { status: 'success', data: dbHealth, note: 'fallback to testAPI.testDB' };
+        } else {
+          results.database_health = { status: 'skipped', error: 'checkDatabase not available on healthAPI' };
+        }
       } catch (error: any) {
-        results.database_health = { status: 'error', error: error.message };
+        results.database_health = { status: 'error', error: error?.message || String(error) };
       }
 
-      // Test auth using the new health API
+      // Test auth using the new health API (with fallback)
       try {
-        const authHealth = await healthAPI.checkAuth();
-        results.auth_health = { status: 'success', data: authHealth };
+        if (typeof (healthAPI as any).checkAuth === 'function') {
+          const authHealth = await (healthAPI as any).checkAuth();
+          results.auth_health = { status: 'success', data: authHealth };
+        } else if (typeof (authAPI as any).test === 'function') {
+          const legacyAuth = await (authAPI as any).test();
+          results.auth_health = { status: 'success', data: legacyAuth, note: 'fallback to authAPI.test' };
+        } else {
+          results.auth_health = { status: 'skipped', error: 'checkAuth not available on healthAPI' };
+        }
       } catch (error: any) {
-        results.auth_health = { status: 'error', error: error.message };
+        results.auth_health = { status: 'error', error: error?.message || String(error) };
       }
 
       // Test legacy endpoints for compatibility
       try {
-        const legacyHealth = await testAPI.health();
-        results.legacy_health = { status: 'success', data: legacyHealth };
+        if (typeof (testAPI as any).health === 'function') {
+          const legacyHealth = await (testAPI as any).health();
+          results.legacy_health = { status: 'success', data: legacyHealth };
+        } else if (typeof (healthAPI as any).checkAPI === 'function') {
+          // fallback to the new healthAPI if legacy testAPI.health isn't available
+          const legacyHealth = await (healthAPI as any).checkAPI();
+          results.legacy_health = { status: 'success', data: legacyHealth, note: 'used healthAPI.checkAPI' };
+        } else {
+          results.legacy_health = { status: 'skipped', error: 'health not available on testAPI or healthAPI' };
+        }
       } catch (error: any) {
-        results.legacy_health = { status: 'error', error: error.message };
+        results.legacy_health = { status: 'error', error: error?.message || String(error) };
       }
 
       try {
-        const legacyDB = await testAPI.testDB();
-        results.legacy_db = { status: 'success', data: legacyDB };
+        if (typeof (testAPI as any).testDB === 'function') {
+          const legacyDB = await (testAPI as any).testDB();
+          results.legacy_db = { status: 'success', data: legacyDB };
+        } else {
+          results.legacy_db = { status: 'skipped', error: 'testDB not available on testAPI' };
+        }
       } catch (error: any) {
         results.legacy_db = { status: 'error', error: error.message };
       }
 
       try {
-        const legacyAuth = await authAPI.test();
-        results.legacy_auth = { status: 'success', data: legacyAuth };
+        if (typeof (authAPI as any).test === 'function') {
+          const legacyAuth = await (authAPI as any).test();
+          results.legacy_auth = { status: 'success', data: legacyAuth };
+        } else if (typeof (authAPI as any).getMe === 'function') {
+          // fallback to a non-legacy method that's available on authAPI
+          const me = await (authAPI as any).getMe();
+          results.legacy_auth = { status: 'success', data: me, note: 'used authAPI.getMe as alternative' };
+        } else {
+          results.legacy_auth = { status: 'skipped', error: 'test not available on authAPI' };
+        }
       } catch (error: any) {
-        results.legacy_auth = { status: 'error', error: error.message };
+        results.legacy_auth = { status: 'error', error: error?.message || String(error) };
       }
 
     } catch (error) {

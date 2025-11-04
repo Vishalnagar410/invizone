@@ -1,58 +1,71 @@
-# backend/app/api/chemicals.py
+# backend/app/api/chemicals.py - ENHANCED VERSION
 from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import pandas as pd
 import io
 import logging
+import json
 
 # ✅ Use absolute imports for reliability with uvicorn/app.main
 from app.database import get_db
-from app.models import User, Chemical, Stock
+from app.models import User, Chemical, Stock, Location
 from app.schemas import Chemical as ChemicalSchema, ChemicalCreate, ChemicalUpdate, ChemicalWithStock
 from app.crud import chemical_crud, stock_crud, msds_crud
 from app.auth.auth import get_current_user, require_admin
-from app.utils.chemical_utils import process_chemical_data, generate_barcode
+from app.utils.chemical_utils import process_chemical_data, generate_barcode, generate_chemical_qr_data
 from app.services.pubchem_service import pubchem_service
 from app.schemas import PubChemCompound
+from app.websocket import broadcast_new_chemical  # NEW: WebSocket integration
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 # --------------------------------------------------------------------
-# Get all chemicals with stock information
+# Get all chemicals with stock information - ENHANCED with locations
 # --------------------------------------------------------------------
 @router.get("/", response_model=List[ChemicalWithStock])
 def read_chemicals(
     skip: int = 0,
     limit: int = 100,
+    location_id: Optional[int] = Query(None),
+    low_stock: Optional[bool] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
-    Get all chemicals with stock information
+    Get all chemicals with stock information - Enhanced with filtering
     """
     chemicals = chemical_crud.get_chemicals_with_stock(db, skip=skip, limit=limit)
+    
+    # Apply additional filters
+    if location_id:
+        chemicals = [chem for chem in chemicals if chem.location_id == location_id]
+    
+    if low_stock:
+        chemicals = [chem for chem in chemicals 
+                    if chem.stock and chem.stock.current_quantity <= chem.stock.trigger_level]
+    
     return chemicals
 
 # --------------------------------------------------------------------
-# Search chemicals by text query
+# Search chemicals by text query - ENHANCED with location search
 # --------------------------------------------------------------------
 @router.get("/search", response_model=List[ChemicalWithStock])
 def search_chemicals(
-    query: str = Query(..., description="Search by name, CAS, SMILES, or formula"),
+    query: str = Query(..., description="Search by name, CAS, SMILES, formula, or location"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
-    Search chemicals by text query
+    Search chemicals by text query - Enhanced with location search
     """
     chemicals = chemical_crud.search_chemicals_text(db, query=query)
     return chemicals
 
 # --------------------------------------------------------------------
-# Get single chemical by ID
+# Get single chemical by ID - ENHANCED with full relationships
 # --------------------------------------------------------------------
 @router.get("/{chemical_id}", response_model=ChemicalWithStock)
 def read_chemical(
@@ -61,15 +74,15 @@ def read_chemical(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Get chemical by ID
+    Get chemical by ID - Enhanced with full relationships
     """
-    db_chemical = chemical_crud.get_chemical(db, chemical_id=chemical_id)
+    db_chemical = chemical_crud.get_chemical_with_relationships(db, chemical_id=chemical_id)
     if db_chemical is None:
         raise HTTPException(status_code=404, detail="Chemical not found")
     return db_chemical
 
 # --------------------------------------------------------------------
-# Create new chemical (Admin only)
+# Create new chemical (Admin only) - ENHANCED with WebSocket
 # --------------------------------------------------------------------
 @router.post("/", response_model=ChemicalWithStock)
 def create_chemical(
@@ -79,7 +92,7 @@ def create_chemical(
     current_user: User = Depends(require_admin)
 ):
     """
-    Create new chemical (Admin only)
+    Create new chemical (Admin only) - Enhanced with WebSocket broadcast
     """
     try:
         # Process chemical data
@@ -95,7 +108,8 @@ def create_chemical(
         db_chemical = chemical_crud.create_chemical_with_data(
             db=db, 
             chemical_data=processed_data, 
-            user_id=current_user.id
+            user_id=current_user.id,
+            location_id=chemical.location_id  # NEW: Include location
         )
         
         # Generate barcode
@@ -122,11 +136,25 @@ def create_chemical(
             db_chemical.id
         )
         
-        # Return chemical with stock
+        # Generate barcode images in background
+        background_tasks.add_task(
+            generate_barcode_images,
+            db,
+            db_chemical.id
+        )
+        
+        # Broadcast new chemical via WebSocket
+        chemical_with_relationships = chemical_crud.get_chemical_with_relationships(db, db_chemical.id)
+        background_tasks.add_task(
+            broadcast_new_chemical,
+            ChemicalWithStock(**chemical_with_relationships.__dict__).dict()
+        )
+        
         return ChemicalWithStock(
             **db_chemical.__dict__,
             stock=db_stock,
-            msds=None
+            msds=None,
+            location=db_chemical.location
         )
         
     except ValueError as e:
@@ -136,7 +164,7 @@ def create_chemical(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # --------------------------------------------------------------------
-# Bulk upload chemicals from CSV
+# Bulk upload chemicals from CSV - ENHANCED with location support
 # --------------------------------------------------------------------
 @router.post("/bulk-upload")
 async def bulk_upload_chemicals(
@@ -146,7 +174,7 @@ async def bulk_upload_chemicals(
     current_user: User = Depends(require_admin)
 ):
     """
-    Bulk upload chemicals from CSV file
+    Bulk upload chemicals from CSV file - Enhanced with location support
     """
     if not file.filename.endswith('.csv'):
         raise HTTPException(
@@ -186,6 +214,7 @@ async def bulk_upload_chemicals(
                 # Process chemical data
                 initial_quantity = float(row.get('initial_quantity', 0))
                 initial_unit = row.get('initial_unit', 'g')
+                location_id = row.get('location_id')
                 
                 processed_data = process_chemical_data(
                     row['smiles'],
@@ -199,7 +228,8 @@ async def bulk_upload_chemicals(
                 db_chemical = chemical_crud.create_chemical_with_data(
                     db=db,
                     chemical_data=processed_data,
-                    user_id=current_user.id
+                    user_id=current_user.id,
+                    location_id=location_id  # NEW: Include location
                 )
                 
                 # Generate barcode
@@ -217,10 +247,15 @@ async def bulk_upload_chemicals(
                 db.add(db_stock)
                 db.commit()
                 
-                # Schedule MSDS fetch
+                # Schedule MSDS fetch and barcode generation
                 if background_tasks:
                     background_tasks.add_task(
                         msds_crud.get_or_fetch_msds,
+                        db,
+                        db_chemical.id
+                    )
+                    background_tasks.add_task(
+                        generate_barcode_images,
                         db,
                         db_chemical.id
                     )
@@ -230,7 +265,8 @@ async def bulk_upload_chemicals(
                     "name": db_chemical.name,
                     "cas_number": db_chemical.cas_number,
                     "unique_id": db_chemical.unique_id,
-                    "barcode": db_chemical.barcode
+                    "barcode": db_chemical.barcode,
+                    "location_id": db_chemical.location_id
                 })
                 
             except Exception as e:
@@ -251,38 +287,55 @@ async def bulk_upload_chemicals(
         )
 
 # --------------------------------------------------------------------
-# Update chemical (Admin only)
+# Update chemical (Admin only) - ENHANCED with location and WebSocket
 # --------------------------------------------------------------------
 @router.put("/{chemical_id}", response_model=ChemicalSchema)
 def update_chemical(
     chemical_id: int,
     chemical_update: ChemicalUpdate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
 ):
     """
-    Update chemical (Admin only)
+    Update chemical (Admin only) - Enhanced with location and WebSocket
     """
     db_chemical = chemical_crud.update_chemical(db, chemical_id=chemical_id, chemical_update=chemical_update)
     if db_chemical is None:
         raise HTTPException(status_code=404, detail="Chemical not found")
+    
+    # Broadcast update via WebSocket
+    chemical_with_relationships = chemical_crud.get_chemical_with_relationships(db, chemical_id)
+    background_tasks.add_task(
+        broadcast_chemical_update,
+        ChemicalWithStock(**chemical_with_relationships.__dict__).dict()
+    )
+    
     return db_chemical
 
 # --------------------------------------------------------------------
-# Delete chemical (Admin only)
+# Delete chemical (Admin only) - ENHANCED with WebSocket
 # --------------------------------------------------------------------
 @router.delete("/{chemical_id}")
 def delete_chemical(
     chemical_id: int,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
 ):
     """
-    Delete chemical (Admin only)
+    Delete chemical (Admin only) - Enhanced with WebSocket broadcast
     """
     success = chemical_crud.delete_chemical(db, chemical_id=chemical_id)
     if not success:
         raise HTTPException(status_code=404, detail="Chemical not found")
+    
+    # Broadcast deletion via WebSocket
+    background_tasks.add_task(
+        broadcast_chemical_update,
+        {"id": chemical_id, "deleted": True}
+    )
+    
     return {"message": "Chemical deleted successfully"}
 
 # --------------------------------------------------------------------
@@ -315,7 +368,7 @@ def validate_smiles(
         return {"valid": False, "message": str(e)}
 
 # --------------------------------------------------------------------
-# Get barcode for chemical
+# Get barcode for chemical - ENHANCED with image generation
 # --------------------------------------------------------------------
 @router.get("/{chemical_id}/barcode")
 def get_chemical_barcode(
@@ -324,20 +377,25 @@ def get_chemical_barcode(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Get barcode data for chemical
+    Get barcode data for chemical - Enhanced with image availability
     """
     chemical = db.query(Chemical).filter(Chemical.id == chemical_id).first()
     if not chemical:
         raise HTTPException(status_code=404, detail="Chemical not found")
+    
+    # Check if barcode images exist
+    from app.models import BarcodeImage
+    barcode_images = db.query(BarcodeImage).filter(BarcodeImage.chemical_id == chemical_id).all()
     
     return {
         "chemical_id": chemical.id,
         "unique_id": chemical.unique_id,
         "barcode": chemical.barcode,
         "name": chemical.name,
-        "cas_number": chemical.cas_number
+        "cas_number": chemical.cas_number,
+        "barcode_images_available": len(barcode_images) > 0,
+        "available_types": [img.barcode_type for img in barcode_images]
     }
-
 
 # --------------------------------------------------------------------
 # Search PubChem by name, SMILES, or CAS
@@ -413,7 +471,6 @@ def search_pubchem(
         logger.error(f"PubChem search error: {e}")
         raise HTTPException(status_code=500, detail="Error searching PubChem")
 
-
 # --------------------------------------------------------------------
 # Get safety data from PubChem
 # --------------------------------------------------------------------
@@ -440,3 +497,28 @@ def get_pubchem_safety_data(
     except Exception as e:
         logger.error(f"PubChem safety data error: {e}")
         raise HTTPException(status_code=500, detail="Error retrieving safety data")
+
+# NEW HELPER FUNCTIONS
+
+async def generate_barcode_images(db: Session, chemical_id: int):
+    """
+    Generate barcode images for a chemical
+    """
+    try:
+        from app.api.barcodes import generate_and_store_barcodes
+        chemical = db.query(Chemical).filter(Chemical.id == chemical_id).first()
+        if chemical:
+            qr_data = generate_chemical_qr_data(chemical.__dict__)
+            await generate_and_store_barcodes(db, chemical_id, chemical.barcode, qr_data)
+    except Exception as e:
+        logger.error(f"Error generating barcode images: {e}")
+
+async def broadcast_chemical_update(chemical_data: dict):
+    """
+    Broadcast chemical update via WebSocket
+    """
+    try:
+        from app.websocket import broadcast_chemical_update as ws_broadcast
+        await ws_broadcast(chemical_data)
+    except Exception as e:
+        logger.error(f"Error broadcasting chemical update: {e}")

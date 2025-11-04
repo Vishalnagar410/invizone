@@ -2,7 +2,7 @@
 
 import { ChemicalWithStock } from '@/types';
 import { X, Beaker, MapPin, Barcode, Hash, Package, Calendar, User } from 'lucide-react';
-import { RDKitEditor } from './RDKitEditor';
+import { RDKitEditor } from './chemical-editors/RDKitEditor';
 import { GHSPictograms } from './ghs-pictograms';
 
 interface ChemicalDetailsModalProps {

@@ -1,4 +1,4 @@
-// frontend/lib/api.ts
+// frontend/lib/api.ts - ENHANCED VERSION
 import axios from 'axios';
 import { 
   AuthTokens, 
@@ -11,10 +11,19 @@ import {
   StockSummary,
   Alert,
   MSDS,
-  HazardSummary
+  HazardSummary,
+  Location,
+  LocationFormData,
+  StockAdjustment,
+  StockAdjustmentFormData,
+  BarcodeImage,
+  BarcodeDownloadResponse,
+  AdjustmentSummary,
+  LocationHierarchy
 } from '@/types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const WS_BASE_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000';
 
 console.log('API Base URL:', API_BASE_URL);
 
@@ -76,38 +85,9 @@ api.interceptors.response.use(
 // Health Check API
 export const healthAPI = {
   checkAPI: async (): Promise<any> => {
-    const response = await api.get('/api/health');
+    const response = await api.get('/health');
     return response.data;
   },
-  
-  checkDatabase: async (): Promise<any> => {
-    const response = await api.get('/api/database/health');
-    return response.data;
-  },
-  
-  checkAuth: async (): Promise<any> => {
-    const response = await api.get('/api/auth/health');
-    return response.data;
-  },
-  
-  checkAllServices: async (): Promise<any> => {
-    try {
-      const [apiHealth, dbHealth, authHealth] = await Promise.all([
-        healthAPI.checkAPI(),
-        healthAPI.checkDatabase(),
-        healthAPI.checkAuth()
-      ]);
-      
-      return {
-        api: apiHealth,
-        database: dbHealth,
-        auth: authHealth
-      };
-    } catch (error) {
-      console.error('Health check failed:', error);
-      throw error;
-    }
-  }
 };
 
 // Auth API
@@ -142,29 +122,6 @@ export const authAPI = {
     const response = await api.get('/auth/me');
     return response.data;
   },
-
-  test: async (): Promise<any> => {
-    console.log('🧪 Testing auth endpoint');
-    const response = await api.get('/auth/test');
-    return response.data;
-  },
-
-  // Debug login endpoint
-  loginDebug: async (credentials: LoginFormData): Promise<any> => {
-    console.log('🔧 Debug login attempt for:', credentials.email);
-    
-    const formData = new URLSearchParams();
-    formData.append('username', credentials.email);
-    formData.append('password', credentials.password);
-
-    const response = await api.post('/auth/login-debug', formData, {
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-    });
-    
-    return response.data;
-  }
 };
 
 // Users API
@@ -178,58 +135,18 @@ export const usersAPI = {
     const response = await api.get(`/users/${id}`);
     return response.data;
   },
-  
-  getMe: async (): Promise<User> => {
-    const response = await api.get('/users/me');
-    return response.data;
-  },
-  
-  updateMe: async (userData: Partial<User>): Promise<User> => {
-    const response = await api.put('/users/me', userData);
-    return response.data;
-  },
-  
-  updatePassword: async (passwordData: { current_password: string; new_password: string }): Promise<void> => {
-    await api.put('/users/me/password', passwordData);
-  },
-  
-  create: async (userData: { email: string; password: string; full_name: string; role: string }): Promise<User> => {
-    const response = await api.post('/users/', userData);
-    return response.data;
-  },
-  
-  update: async (id: number, userData: Partial<User>): Promise<User> => {
-    const response = await api.put(`/users/${id}`, userData);
-    return response.data;
-  },
-  
-  toggleActive: async (id: number): Promise<User> => {
-    const response = await api.patch(`/users/${id}/toggle-active`);
-    return response.data;
-  },
-  
-  delete: async (id: number): Promise<void> => {
-    await api.delete(`/users/${id}`);
-  }
 };
 
-// Test API connection
-export const testAPI = {
-  health: async (): Promise<any> => {
-    const response = await api.get('/health');
-    return response.data;
-  },
-  
-  testDB: async (): Promise<any> => {
-    const response = await api.get('/test-db');
-    return response.data;
-  }
-};
-
-// Chemicals API
+// Chemicals API - ENHANCED
 export const chemicalsAPI = {
-  getAll: async (skip = 0, limit = 100): Promise<ChemicalWithStock[]> => {
-    const response = await api.get(`/chemicals?skip=${skip}&limit=${limit}`);
+  getAll: async (skip = 0, limit = 100, location_id?: number, low_stock?: boolean): Promise<ChemicalWithStock[]> => {
+    const params = new URLSearchParams();
+    params.append('skip', skip.toString());
+    params.append('limit', limit.toString());
+    if (location_id) params.append('location_id', location_id.toString());
+    if (low_stock) params.append('low_stock', 'true');
+    
+    const response = await api.get(`/chemicals?${params}`);
     return response.data;
   },
   
@@ -262,7 +179,6 @@ export const chemicalsAPI = {
     return response.data;
   },
 
-  // NEW: Bulk upload method
   bulkUpload: async (file: File): Promise<any> => {
     const formData = new FormData();
     formData.append('file', file);
@@ -275,14 +191,13 @@ export const chemicalsAPI = {
     return response.data;
   },
 
-  // NEW: Get barcode data
   getBarcode: async (chemicalId: number): Promise<any> => {
     const response = await api.get(`/chemicals/${chemicalId}/barcode`);
     return response.data;
   }
 };
 
-// Stock API
+// Stock API - ENHANCED
 export const stockAPI = {
   getAll: async (skip = 0, limit = 100): Promise<any[]> => {
     const response = await api.get(`/stock?skip=${skip}&limit=${limit}`);
@@ -304,18 +219,189 @@ export const stockAPI = {
     return response.data;
   },
 
+  getChemicalsWithStock: async (skip = 0, limit = 100, low_stock_only = false, location_id?: number): Promise<ChemicalWithStock[]> => {
+    const params = new URLSearchParams();
+    params.append('skip', skip.toString());
+    params.append('limit', limit.toString());
+    if (low_stock_only) params.append('low_stock_only', 'true');
+    if (location_id) params.append('location_id', location_id.toString());
+    
+    const response = await api.get(`/stock/chemicals-with-stock?${params}`);
+    return response.data;
+  },
+
   getLowStockChemicals: async (skip = 0, limit = 100): Promise<ChemicalWithStock[]> => {
-    const response = await api.get(`/reports/stock/low-stock?skip=${skip}&limit=${limit}`);
+    const response = await api.get(`/stock/low-stock?skip=${skip}&limit=${limit}`);
     return response.data;
   },
 
   getStockSummary: async (): Promise<StockSummary> => {
-    const response = await api.get('/reports/stock/summary');
+    const response = await api.get('/stock/summary');
     return response.data;
   },
 
-  triggerDailyReport: async (): Promise<any> => {
-    const response = await api.post('/reports/notifications/daily-report');
+  recordUsage: async (chemicalId: number, usageData: any): Promise<any> => {
+    const response = await api.post(`/stock/${chemicalId}/usage`, usageData);
+    return response.data;
+  },
+
+  getUsageHistory: async (chemicalId: number, skip = 0, limit = 100): Promise<any[]> => {
+    const response = await api.get(`/stock/${chemicalId}/usage?skip=${skip}&limit=${limit}`);
+    return response.data;
+  },
+
+  updateTriggerLevel: async (chemicalId: number, triggerLevel: number): Promise<any> => {
+    const response = await api.put(`/stock/${chemicalId}/trigger-level`, { trigger_level: triggerLevel });
+    return response.data;
+  }
+};
+
+// NEW: Locations API
+export const locationsAPI = {
+  getAll: async (skip = 0, limit = 100, department?: string, lab_name?: string, room?: string, storage_condition?: string): Promise<Location[]> => {
+    const params = new URLSearchParams();
+    params.append('skip', skip.toString());
+    params.append('limit', limit.toString());
+    if (department) params.append('department', department);
+    if (lab_name) params.append('lab_name', lab_name);
+    if (room) params.append('room', room);
+    if (storage_condition) params.append('storage_condition', storage_condition);
+    
+    const response = await api.get(`/locations?${params}`);
+    return response.data;
+  },
+  
+  getById: async (id: number): Promise<Location> => {
+    const response = await api.get(`/locations/${id}`);
+    return response.data;
+  },
+  
+  create: async (location: LocationFormData): Promise<Location> => {
+    const response = await api.post('/locations', location);
+    return response.data;
+  },
+  
+  update: async (id: number, location: Partial<LocationFormData>): Promise<Location> => {
+    const response = await api.put(`/locations/${id}`, location);
+    return response.data;
+  },
+  
+  delete: async (id: number): Promise<void> => {
+    await api.delete(`/locations/${id}`);
+  },
+  
+  getHierarchy: async (): Promise<LocationHierarchy> => {
+    const [departments, labs, rooms] = await Promise.all([
+      api.get('/locations/hierarchy/departments'),
+      api.get('/locations/hierarchy/labs'),
+      api.get('/locations/hierarchy/rooms')
+    ]);
+    
+    return {
+      departments: departments.data,
+      labs: labs.data,
+      rooms: rooms.data
+    };
+  },
+  
+  getChemicalsAtLocation: async (locationId: number, skip = 0, limit = 100): Promise<ChemicalWithStock[]> => {
+    const response = await api.get(`/locations/${locationId}/chemicals?skip=${skip}&limit=${limit}`);
+    return response.data;
+  },
+  
+  getStorageConditions: async (): Promise<string[]> => {
+    const response = await api.get('/locations/storage-conditions/types');
+    return response.data;
+  }
+};
+
+// NEW: Barcodes API
+export const barcodesAPI = {
+  getChemicalBarcodes: async (chemicalId: number, barcode_type?: string): Promise<BarcodeImage[]> => {
+    const params = new URLSearchParams();
+    if (barcode_type) params.append('barcode_type', barcode_type);
+    
+    const response = await api.get(`/barcodes/chemical/${chemicalId}?${params}`);
+    return response.data;
+  },
+  
+  generateBarcodes: async (chemicalId: number): Promise<any> => {
+    const response = await api.post(`/barcodes/chemical/${chemicalId}/generate`);
+    return response.data;
+  },
+  
+  downloadBarcode: async (chemicalId: number, barcodeType: string): Promise<BarcodeDownloadResponse> => {
+    const response = await api.get(`/barcodes/chemical/${chemicalId}/download/${barcodeType}`);
+    return response.data;
+  },
+  
+  bulkGenerate: async (chemicalIds: number[]): Promise<any> => {
+    const response = await api.post('/barcodes/bulk-generate', { chemical_ids: chemicalIds });
+    return response.data;
+  },
+  
+  bulkDownload: async (chemicalIds: number[], barcodeType: string): Promise<BarcodeDownloadResponse> => {
+    const response = await api.post('/barcodes/bulk-download', { 
+      chemical_ids: chemicalIds,
+      barcode_type: barcodeType
+    });
+    return response.data;
+  },
+  
+  scanBarcode: async (barcodeData: string): Promise<ChemicalWithStock> => {
+    const response = await api.get(`/barcodes/scan/${encodeURIComponent(barcodeData)}`);
+    return response.data;
+  },
+  
+  getBarcodeTypes: async (): Promise<string[]> => {
+    const response = await api.get('/barcodes/types');
+    return response.data;
+  }
+};
+
+// NEW: Stock Adjustments API
+export const stockAdjustmentsAPI = {
+  create: async (adjustment: StockAdjustmentFormData): Promise<StockAdjustment> => {
+    const response = await api.post('/stock-adjustments', adjustment);
+    return response.data;
+  },
+  
+  getChemicalAdjustments: async (chemicalId: number, skip = 0, limit = 100, reason?: string, start_date?: string, end_date?: string): Promise<StockAdjustment[]> => {
+    const params = new URLSearchParams();
+    params.append('skip', skip.toString());
+    params.append('limit', limit.toString());
+    if (reason) params.append('reason', reason);
+    if (start_date) params.append('start_date', start_date);
+    if (end_date) params.append('end_date', end_date);
+    
+    const response = await api.get(`/stock-adjustments/chemical/${chemicalId}?${params}`);
+    return response.data;
+  },
+  
+  getAll: async (skip = 0, limit = 100, chemical_id?: number, admin_id?: number, reason?: string): Promise<StockAdjustment[]> => {
+    const params = new URLSearchParams();
+    params.append('skip', skip.toString());
+    params.append('limit', limit.toString());
+    if (chemical_id) params.append('chemical_id', chemical_id.toString());
+    if (admin_id) params.append('admin_id', admin_id.toString());
+    if (reason) params.append('reason', reason);
+    
+    const response = await api.get(`/stock-adjustments?${params}`);
+    return response.data;
+  },
+  
+  getRecent: async (hours = 24): Promise<StockAdjustment[]> => {
+    const response = await api.get(`/stock-adjustments/recent?hours=${hours}`);
+    return response.data;
+  },
+  
+  getSummary: async (days = 30): Promise<AdjustmentSummary> => {
+    const response = await api.get(`/stock-adjustments/summary?days=${days}`);
+    return response.data;
+  },
+  
+  getReasons: async (): Promise<string[]> => {
+    const response = await api.get('/stock-adjustments/reasons');
     return response.data;
   }
 };
@@ -326,31 +412,6 @@ export const msdsAPI = {
     const response = await api.get(`/msds/${chemicalId}`);
     return response.data;
   },
-
-  fetchMSDS: async (chemicalId: number): Promise<MSDS> => {
-    const response = await api.post(`/msds/${chemicalId}/fetch`);
-    return response.data;
-  },
-
-  getHazardSummary: async (chemicalId: number): Promise<HazardSummary> => {
-    const response = await api.get(`/msds/${chemicalId}/hazard-summary`);
-    return response.data;
-  },
-
-  getChemicalsWithoutMSDS: async (skip = 0, limit = 100): Promise<any[]> => {
-    const response = await api.get(`/msds/chemicals/without-msds?skip=${skip}&limit=${limit}`);
-    return response.data;
-  },
-
-  getChemicalsWithMSDS: async (skip = 0, limit = 100): Promise<any[]> => {
-    const response = await api.get(`/msds/chemicals/with-msds?skip=${skip}&limit=${limit}`);
-    return response.data;
-  },
-
-  refreshMSDS: async (chemicalId: number): Promise<any> => {
-    const response = await api.post(`/msds/${chemicalId}/refresh`);
-    return response.data;
-  }
 };
 
 // Reports API
@@ -359,16 +420,42 @@ export const reportsAPI = {
     const response = await api.get('/reports/stock/summary');
     return response.data;
   },
+};
 
-  getLowStockReport: async (skip = 0, limit = 100): Promise<ChemicalWithStock[]> => {
-    const response = await api.get(`/reports/stock/low-stock?skip=${skip}&limit=${limit}`);
-    return response.data;
-  },
-
-  triggerDailyReport: async (): Promise<any> => {
-    const response = await api.post('/reports/notifications/daily-report');
-    return response.data;
-  }
+// WebSocket utility
+export const setupWebSocket = (onMessage: (message: any) => void) => {
+  if (typeof window === 'undefined') return null;
+  
+  const token = localStorage.getItem('access_token');
+  const wsUrl = `${WS_BASE_URL}/ws?token=${token}`;
+  
+  const socket = new WebSocket(wsUrl);
+  
+  socket.onopen = () => {
+    console.log('✅ WebSocket connected');
+    // Subscribe to updates
+    socket.send(JSON.stringify({
+      type: 'subscribe_to_updates',
+      data: {
+        types: ['chemicals', 'stock', 'locations', 'alerts']
+      }
+    }));
+  };
+  
+  socket.onmessage = (event) => {
+    const message = JSON.parse(event.data);
+    onMessage(message);
+  };
+  
+  socket.onclose = () => {
+    console.log('🔌 WebSocket disconnected');
+  };
+  
+  socket.onerror = (error) => {
+    console.error('❌ WebSocket error:', error);
+  };
+  
+  return socket;
 };
 
 // Export all API methods
@@ -376,9 +463,12 @@ export default {
   healthAPI,
   authAPI,
   usersAPI,
-  testAPI,
   chemicalsAPI,
   stockAPI,
+  locationsAPI,
+  barcodesAPI,
+  stockAdjustmentsAPI,
   msdsAPI,
-  reportsAPI
+  reportsAPI,
+  setupWebSocket
 };

@@ -9,13 +9,40 @@ class UserRole(str, Enum):
     ADMIN = "admin"
     VIEWER = "viewer"
 
-# Location Schemas (NEW)
+# Storage Condition Enum
+class StorageCondition(str, Enum):
+    RT = "RT"
+    COLD_2_8 = "2-8°C"
+    FREEZER_20 = "-20°C"
+    FREEZER_80 = "-80°C"
+    CUSTOM = "Custom"
+
+# Adjustment Reason Enum
+class AdjustmentReason(str, Enum):
+    USAGE = "Usage"
+    SPILLAGE = "Spillage"
+    RECEIVED = "Received"
+    CORRECTION = "Correction"
+    TRANSFER = "Transfer"
+    EXPIRED = "Expired"
+    OTHER = "Other"
+
+# Barcode Type Enum
+class BarcodeType(str, Enum):
+    CODE128 = "code128"
+    QR = "qr"
+
+# Location Schemas
 class LocationBase(BaseModel):
     name: str
+    department: Optional[str] = None
+    lab_name: Optional[str] = None
     room: Optional[str] = None
-    rack: Optional[str] = None
     shelf: Optional[str] = None
+    rack: Optional[str] = None
     position: Optional[str] = None
+    storage_conditions: Optional[StorageCondition] = StorageCondition.RT
+    custom_storage_condition: Optional[str] = None
     description: Optional[str] = None
 
 class LocationCreate(LocationBase):
@@ -23,10 +50,14 @@ class LocationCreate(LocationBase):
 
 class LocationUpdate(BaseModel):
     name: Optional[str] = None
+    department: Optional[str] = None
+    lab_name: Optional[str] = None
     room: Optional[str] = None
-    rack: Optional[str] = None
     shelf: Optional[str] = None
+    rack: Optional[str] = None
     position: Optional[str] = None
+    storage_conditions: Optional[StorageCondition] = None
+    custom_storage_condition: Optional[str] = None
     description: Optional[str] = None
 
 class Location(LocationBase):
@@ -68,7 +99,7 @@ class ChemicalBase(BaseModel):
     name: str
     cas_number: str
     smiles: str
-    location_id: Optional[int] = None  # NEW
+    location_id: Optional[int] = None
     molecular_formula: Optional[str] = None
     initial_quantity: Optional[float] = 0.0
     initial_unit: Optional[str] = "g"
@@ -80,7 +111,7 @@ class ChemicalUpdate(BaseModel):
     name: Optional[str] = None
     cas_number: Optional[str] = None
     smiles: Optional[str] = None
-    location_id: Optional[int] = None  # NEW
+    location_id: Optional[int] = None
     initial_quantity: Optional[float] = None
     initial_unit: Optional[str] = None
 
@@ -116,7 +147,7 @@ class Stock(StockBase):
     class Config:
         from_attributes = True
 
-# Usage History Schemas (NEW)
+# Usage History Schemas
 class UsageHistoryBase(BaseModel):
     quantity_used: float
     unit: str
@@ -131,6 +162,46 @@ class UsageHistory(UsageHistoryBase):
     used_by: int
     used_at: datetime
     user: Optional[User] = None
+    
+    class Config:
+        from_attributes = True
+
+# Barcode Image Schemas (NEW)
+class BarcodeImageBase(BaseModel):
+    barcode_type: BarcodeType
+    barcode_data: str
+
+class BarcodeImageCreate(BarcodeImageBase):
+    chemical_id: int
+
+class BarcodeImage(BarcodeImageBase):
+    id: int
+    chemical_id: int
+    image_blob: Optional[bytes] = None
+    image_path: Optional[str] = None
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+# Stock Adjustment Schemas (NEW)
+class StockAdjustmentBase(BaseModel):
+    before_quantity: float
+    after_quantity: float
+    change_amount: float
+    reason: AdjustmentReason
+    note: Optional[str] = None
+
+class StockAdjustmentCreate(StockAdjustmentBase):
+    chemical_id: int
+
+class StockAdjustment(StockAdjustmentBase):
+    id: int
+    chemical_id: int
+    admin_id: int
+    timestamp: datetime
+    admin: Optional[User] = None
+    chemical: Optional[Chemical] = None
     
     class Config:
         from_attributes = True
@@ -177,8 +248,10 @@ class Alert(AlertBase):
 class ChemicalWithStock(Chemical):
     stock: Optional[Stock] = None
     msds: Optional[MSDS] = None
-    location: Optional[Location] = None  # NEW
-    usage_history: List[UsageHistory] = []  # NEW
+    location: Optional[Location] = None
+    usage_history: List[UsageHistory] = []
+    barcode_images: List[BarcodeImage] = []
+    stock_adjustments: List[StockAdjustment] = []
 
 class Token(BaseModel):
     access_token: str
@@ -217,7 +290,7 @@ class BarcodeData(BaseModel):
     name: str
     cas_number: str
 
-# PubChem Response Schema (NEW)
+# PubChem Response Schema
 class PubChemCompound(BaseModel):
     cid: Optional[int] = None
     name: Optional[str] = None
@@ -226,6 +299,15 @@ class PubChemCompound(BaseModel):
     molecular_formula: Optional[str] = None
     molecular_weight: Optional[float] = None
     cas_number: Optional[str] = None
+
+# WebSocket Message Schemas (NEW)
+class WebSocketMessage(BaseModel):
+    type: str  # 'chemical_created', 'stock_updated', 'adjustment_made'
+    data: Dict[str, Any]
+    timestamp: datetime = None
+
+    class Config:
+        from_attributes = True
 
 # Export all schemas
 __all__ = [
@@ -237,6 +319,9 @@ __all__ = [
     "Token", "TokenData",
     "HazardSummary", "StockSummary",
     "BarcodeData", "PubChemCompound",
-    "Location", "LocationCreate", "LocationUpdate",  # NEW
-    "UsageHistory", "UsageHistoryCreate"  # NEW
+    "Location", "LocationCreate", "LocationUpdate",
+    "UsageHistory", "UsageHistoryCreate",
+    "BarcodeImage", "BarcodeImageCreate", "BarcodeType",
+    "StockAdjustment", "StockAdjustmentCreate", "AdjustmentReason",
+    "StorageCondition", "WebSocketMessage"
 ]
