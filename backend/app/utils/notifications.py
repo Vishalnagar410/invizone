@@ -44,7 +44,7 @@ class NotificationService:
             
             <hr>
             <p style="color: #666; font-size: 12px;">
-                This is an automated alert from SmartChemView System.
+                This is an automated alert from ReyChemIQ System.
             </p>
         </body>
         </html>
@@ -106,7 +106,7 @@ class NotificationService:
         body += """
             <hr>
             <p style="color: #666; font-size: 12px;">
-                This is an automated daily report from SmartChemView System.
+                This is an automated daily report from ReyChemIQ System.
             </p>
         </body>
         </html>

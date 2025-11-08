@@ -3,7 +3,7 @@ import os
 import uvicorn
 
 def main():
-    print("🔧 Starting SmartChemView Backend Server...")
+    print("🔧 Starting ReyChemIQ Backend Server...")
     
     # Add current directory to Python path
     current_dir = os.path.dirname(os.path.abspath(__file__))

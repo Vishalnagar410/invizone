@@ -69,7 +69,7 @@ export default function Home() {
               Ready to streamline your chemical management?
             </h2>
             <p className="text-gray-600 dark:text-gray-300 mb-6">
-              Join thousands of researchers and laboratories using SmartChemView to manage their chemical inventory efficiently.
+              Join thousands of researchers and laboratories using ReyChemIQ to manage their chemical inventory efficiently.
             </p>
             <div className="flex gap-4 justify-center">
               <Link

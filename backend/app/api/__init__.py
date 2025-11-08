@@ -1,6 +1,6 @@
 """
 API Routes Package
-Contains all FastAPI route modules for the SmartChemView application
+Contains all FastAPI route modules for the ReyChemIQ application
 """
 
 from . import auth, chemicals, stock, msds, users, reports

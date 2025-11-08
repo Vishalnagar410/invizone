@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { ChemicalFormData, Location } from '@/types';
 import { useAuth } from '@/lib/auth';
-import { Save, Loader2, QrCode, Beaker, MapPin, Package, AlertTriangle } from 'lucide-react';
-import { RDKitEditor } from './chemical-editors/RDKitEditor';
+import { Save, Loader2, QrCode, Beaker, MapPin, Package, AlertTriangle, Database } from 'lucide-react';
+import { StructureEditorToggle } from './chemical-editors/structure-editor-toggle';
 import { LocationFormModal } from './location-form-modal';
 
 interface EnhancedChemicalFormProps {
@@ -27,10 +27,11 @@ export function EnhancedChemicalForm({ onSuccess, initialData }: EnhancedChemica
   const [computedProperties, setComputedProperties] = useState<{
     molecularWeight?: number;
     molecularFormula?: string;
+    canonicalSmiles?: string;
   }>({});
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
   const [showLocationForm, setShowLocationForm] = useState(false);
-  const [rdkitLoaded, setRdkitLoaded] = useState(false);
+  const [isFetchingPubChem, setIsFetchingPubChem] = useState(false);
 
   const { user } = useAuth();
 
@@ -53,9 +54,13 @@ export function EnhancedChemicalForm({ onSuccess, initialData }: EnhancedChemica
     },
   });
 
-  const watchedStorageCondition = watch('storage_condition');
-  const watchedQuantity = watch('initial_quantity');
+  // Safely watch form fields with proper null checks
+  const watchedStorageCondition = watch('storage_condition') || 'RT';
+  const watchedQuantity = watch('initial_quantity') || 0;
   const watchedLocationId = watch('location_id');
+  const watchedUnit = watch('initial_unit') || 'g';
+  const watchedName = watch('name') || '';
+  const watchedCasNumber = watch('cas_number') || '';
 
   // Load locations
   useEffect(() => {
@@ -89,34 +94,31 @@ export function EnhancedChemicalForm({ onSuccess, initialData }: EnhancedChemica
     }
   }, [watchedLocationId, locations]);
 
-  // Handle RDKit loaded state
-  useEffect(() => {
-    // Check if RDKit is available
-    const checkRDKit = () => {
-      if (typeof window !== 'undefined' && (window as any).RDKit) {
-        setRdkitLoaded(true);
-      }
-    };
-
-    checkRDKit();
-    
-    // Also check after a delay in case it's still loading
-    const timer = setTimeout(checkRDKit, 1000);
-    return () => clearTimeout(timer);
-  }, []);
-
-  const handleSmilesChange = (smiles: string, isValid: boolean) => {
+  // Enhanced SMILES change handler with auto-fetch
+  const handleSmilesChange = async (smiles: string, isValid: boolean, properties?: any) => {
     setCurrentSmiles(smiles);
     setIsSmilesValid(isValid);
     setValue('smiles', smiles, { shouldValidate: true });
 
+    // Update computed properties
+    if (properties) {
+      setComputedProperties({
+        molecularWeight: properties.molecularWeight,
+        molecularFormula: properties.molecularFormula,
+        canonicalSmiles: properties.canonicalSmiles
+      });
+    }
+
     // Auto-fetch from PubChem if valid SMILES and no name/CAS provided
-    if (isValid && smiles && (!initialData?.name || !initialData?.cas_number)) {
-      fetchFromPubChem(smiles);
+    if (isValid && smiles && (!watchedName || !watchedCasNumber)) {
+      await fetchFromPubChem(smiles);
     }
   };
 
   const fetchFromPubChem = async (smiles: string) => {
+    if (!smiles.trim()) return;
+    
+    setIsFetchingPubChem(true);
     try {
       const response = await fetch(
         `http://localhost:8000/chemicals/pubchem/search?query=${encodeURIComponent(smiles)}&search_type=smiles`,
@@ -126,29 +128,57 @@ export function EnhancedChemicalForm({ onSuccess, initialData }: EnhancedChemica
           }
         }
       );
+      
       if (response.ok) {
         const pubchemData = await response.json();
-        if (pubchemData.name && !watch('name')) {
+        
+        // Auto-fill name if empty
+        if (pubchemData.name && !watchedName) {
           setValue('name', pubchemData.name);
         }
-        if (pubchemData.cas_number && !watch('cas_number')) {
+        
+        // Auto-fill CAS if empty
+        if (pubchemData.cas_number && !watchedCasNumber) {
           setValue('cas_number', pubchemData.cas_number);
+        } else if (!watchedCasNumber) {
+          // If CAS not found, set placeholder
+          setValue('cas_number', 'Not found - enter manually');
         }
+        
+        // Update molecular properties if RDKit didn't compute them
         if (pubchemData.molecular_formula && !computedProperties.molecularFormula) {
           setComputedProperties(prev => ({
             ...prev,
             molecularFormula: pubchemData.molecular_formula
           }));
         }
+        
         if (pubchemData.molecular_weight && !computedProperties.molecularWeight) {
           setComputedProperties(prev => ({
             ...prev,
             molecularWeight: pubchemData.molecular_weight
           }));
         }
+      } else {
+        // If PubChem fails, try to use RDKit computed properties for name suggestion
+        if (!watchedName && computedProperties.molecularFormula) {
+          setValue('name', `Chemical (${computedProperties.molecularFormula})`);
+        }
+        if (!watchedCasNumber) {
+          setValue('cas_number', 'Not found - enter manually');
+        }
       }
     } catch (err) {
-      console.log('PubChem fetch failed, continuing with manual input');
+      console.log('PubChem fetch failed, using RDKit fallback');
+      // Fallback to RDKit properties
+      if (!watchedName && computedProperties.molecularFormula) {
+        setValue('name', `Chemical (${computedProperties.molecularFormula})`);
+      }
+      if (!watchedCasNumber) {
+        setValue('cas_number', 'Not found - enter manually');
+      }
+    } finally {
+      setIsFetchingPubChem(false);
     }
   };
 
@@ -201,6 +231,14 @@ export function EnhancedChemicalForm({ onSuccess, initialData }: EnhancedChemica
       return;
     }
 
+    // Include computed properties in submission
+    const submissionData = {
+      ...data,
+      molecular_weight: computedProperties.molecularWeight,
+      molecular_formula: computedProperties.molecularFormula,
+      canonical_smiles: computedProperties.canonicalSmiles || currentSmiles
+    };
+
     setIsLoading(true);
     setError('');
     setSuccess('');
@@ -212,7 +250,7 @@ export function EnhancedChemicalForm({ onSuccess, initialData }: EnhancedChemica
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('access_token')}`
         },
-        body: JSON.stringify(data)
+        body: JSON.stringify(submissionData)
       });
 
       if (!response.ok) {
@@ -223,6 +261,8 @@ export function EnhancedChemicalForm({ onSuccess, initialData }: EnhancedChemica
       const result = await response.json();
       reset();
       setSuccess(`Chemical "${data.name}" added successfully!`);
+      setCurrentSmiles('');
+      setComputedProperties({});
       
       setTimeout(() => {
         onSuccess?.();
@@ -237,69 +277,35 @@ export function EnhancedChemicalForm({ onSuccess, initialData }: EnhancedChemica
   return (
     <div className="space-y-6">
       {error && (
-        <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded flex items-center gap-2">
-          <AlertTriangle className="h-4 w-4" />
-          {error}
+        <div className="p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg flex items-center gap-2">
+          <AlertTriangle className="h-5 w-5" />
+          <div>
+            <strong>Error:</strong> {error}
+          </div>
         </div>
       )}
 
       {success && (
-        <div className="p-3 bg-green-100 border border-green-400 text-green-700 rounded">
-          {success}
+        <div className="p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg">
+          <strong>Success:</strong> {success}
         </div>
       )}
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
         {/* Structure Editor Section */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-            <Beaker className="h-5 w-5" />
-            Chemical Structure Editor
-          </h3>
-          
-          <div className="mb-4">
-            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-              <span>Using: RDKit.js</span>
-              <span className={`text-xs px-2 py-1 rounded ${
-                rdkitLoaded 
-                  ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
-                  : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-              }`}>
-                {rdkitLoaded ? 'Loaded' : 'Loading...'}
-              </span>
-            </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              Draw your structure or enter SMILES. Ketcher/JmolChem integration coming soon.
-            </p>
-          </div>
-
-          <RDKitEditor
+          <StructureEditorToggle
             initialSmiles={currentSmiles}
             onSmilesChange={handleSmilesChange}
-            showValidation={true}
-            width={400}
-            height={300}
+            showProperties={true}
           />
-          
-          {/* Computed Properties */}
-          {(computedProperties.molecularWeight && computedProperties.molecularWeight > 0) && (
-            <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-              <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">
-                Computed Properties
-              </h4>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="text-blue-700 dark:text-blue-300">Molecular Weight:</span>
-                  <div className="font-mono text-blue-900 dark:text-blue-100">
-                    {computedProperties.molecularWeight.toFixed(2)} g/mol
-                  </div>
-                </div>
-                <div>
-                  <span className="text-blue-700 dark:text-blue-300">Formula:</span>
-                  <div className="font-mono text-blue-900 dark:text-blue-100">
-                    {computedProperties.molecularFormula}
-                  </div>
-                </div>
+
+          {/* PubChem Fetch Status */}
+          {isFetchingPubChem && (
+            <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+              <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
+                <Database className="h-4 w-4 animate-pulse" />
+                <span className="text-sm">Fetching data from PubChem...</span>
               </div>
             </div>
           )}
@@ -307,7 +313,8 @@ export function EnhancedChemicalForm({ onSuccess, initialData }: EnhancedChemica
 
         {/* Basic Information Section */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+            <Beaker className="h-5 w-5" />
             Chemical Identification
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -336,7 +343,7 @@ export function EnhancedChemicalForm({ onSuccess, initialData }: EnhancedChemica
                 id="cas_number"
                 {...register('cas_number', { required: 'CAS number is required' })}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                placeholder="e.g., 67-64-1"
+                placeholder="e.g., 67-64-1 or 'Not found - enter manually'"
               />
               {errors.cas_number && (
                 <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.cas_number.message}</p>
@@ -374,8 +381,9 @@ export function EnhancedChemicalForm({ onSuccess, initialData }: EnhancedChemica
                 <button
                   type="button"
                   onClick={() => setShowLocationForm(true)}
-                  className="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm"
+                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm flex items-center gap-2"
                 >
+                  <MapPin className="h-4 w-4" />
                   New
                 </button>
               </div>
@@ -513,13 +521,13 @@ export function EnhancedChemicalForm({ onSuccess, initialData }: EnhancedChemica
 
           {/* Quantity Preview */}
           {(watchedQuantity > 0) && (
-            <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+            <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
               <div className="flex items-center gap-2 text-sm text-blue-700 dark:text-blue-300">
                 <QrCode className="h-4 w-4" />
                 <span>
-                  Chemical will be added with <strong>{watchedQuantity} {watch('initial_unit')}</strong> initial stock
+                  Chemical will be added with <strong>{watchedQuantity} {watchedUnit}</strong> initial stock
                   {watch('minimum_quantity') && watch('minimum_quantity') > 0 && (
-                    <> and <strong>{watch('minimum_quantity')} {watch('initial_unit')}</strong> minimum quantity</>
+                    <> and <strong>{watch('minimum_quantity')} {watchedUnit}</strong> minimum quantity</>
                   )}
                 </span>
               </div>
@@ -550,7 +558,11 @@ export function EnhancedChemicalForm({ onSuccess, initialData }: EnhancedChemica
         <div className="flex justify-end gap-3 pt-6">
           <button
             type="button"
-            onClick={() => reset()}
+            onClick={() => {
+              reset();
+              setCurrentSmiles('');
+              setComputedProperties({});
+            }}
             className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           >
             Reset Form
@@ -558,7 +570,7 @@ export function EnhancedChemicalForm({ onSuccess, initialData }: EnhancedChemica
           <button
             type="submit"
             disabled={isLoading || !isSmilesValid}
-            className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-6 rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {isLoading ? (
               <Loader2 className="h-4 w-4 animate-spin" />

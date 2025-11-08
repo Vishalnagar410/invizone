@@ -47,8 +47,21 @@ def read_chemicals(
         chemicals = [chem for chem in chemicals 
                     if chem.stock and chem.stock.current_quantity <= chem.stock.trigger_level]
     
-    return chemicals
-
+    # Fix: Handle chemicals without MSDS properly
+    chemical_data = []
+    for chem in chemicals:
+        chem_dict = {
+            **chem.__dict__,
+            "stock": chem.stock,
+            "msds": chem.msds if chem.msds else None,  # Ensure msds is None if empty
+            "location": chem.location,
+            "usage_history": chem.usage_history or [],
+            "barcode_images": chem.barcode_images or [],
+            "stock_adjustments": chem.stock_adjustments or []
+        }
+        chemical_data.append(ChemicalWithStock(**chem_dict))
+    
+    return chemical_data
 # --------------------------------------------------------------------
 # Search chemicals by text query - ENHANCED with location search
 # --------------------------------------------------------------------

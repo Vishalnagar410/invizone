@@ -45,7 +45,7 @@ export function TopNav() {
               <Link href="/dashboard" className="flex items-center gap-3">
                 <div className="flex items-center justify-center w-10 h-10 bg-cyan-500 rounded-lg">
                   <Image 
-                    src="/logo_reychemiq.svg" 
+                    src="/logo_reychemiq.png" 
                     alt="ReyChemIQ" 
                     width={32} 
                     height={32}

@@ -1,7 +1,7 @@
 # Create setup.ps1 in your project root
 @'
-# SmartChemView Complete Setup Script
-Write-Host "🚀 SmartChemView Setup" -ForegroundColor Cyan
+# ReyChemIQ Complete Setup Script
+Write-Host "🚀 ReyChemIQ Setup" -ForegroundColor Cyan
 Write-Host "======================" -ForegroundColor Cyan
 
 # 1. Create RDKit directory

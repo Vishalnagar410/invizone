@@ -14,6 +14,7 @@ from .database import engine, get_db
 from .models import Base
 from .api import auth, chemicals, stock, msds, users, reports, locations, barcodes, stock_adjustments
 from .websocket import socket_app
+from .api import molecular
 
 # Create tables
 try:
@@ -35,6 +36,8 @@ app = FastAPI(
         "url": "https://opensource.org/licenses/MIT",
     }
 )
+# Include molecular calculations router
+app.include_router(molecular.router, prefix="/molecular", tags=["molecular-calculations"])
 
 # CORS middleware - allow all origins for development
 app.add_middleware(
