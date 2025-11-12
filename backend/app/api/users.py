@@ -1,241 +1,155 @@
 # backend/app/api/users.py
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 
-try:
-    from app.database import get_db
-    from app.models import User, UserRole
-    from app.schemas import User as UserSchema, UserCreate, UserUpdate, PasswordUpdate
-    from app.auth.auth import get_current_user, require_admin, get_password_hash, verify_password
-except ImportError:
-    from ..database import get_db
-    from ..models import User, UserRole
-    from ..schemas import User as UserSchema, UserCreate, UserUpdate, PasswordUpdate
-    from ..auth.auth import get_current_user, require_admin, get_password_hash, verify_password
+from ..database import get_db
+from ..models import User
+from ..schemas import User as UserSchema
+from ..auth.auth import get_current_user
 
 router = APIRouter()
 
-# -----------------------------------------
-# GET ALL USERS (Admin only)
-# -----------------------------------------
 @router.get("/", response_model=List[UserSchema])
-def read_users(
+def get_all_users(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin)
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Get all users (Admin only)
+    Get all users for dropdown selection (e.g., requisitioner, approved_by)
     """
-    users = db.query(User).offset(skip).limit(limit).all()
-    return users
+    try:
+        users = db.query(User).filter(User.is_active == True).offset(skip).limit(limit).all()
+        return users
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching users: {str(e)}")
 
-# -----------------------------------------
-# GET CURRENT LOGGED-IN USER
-# -----------------------------------------
-@router.get("/me", response_model=UserSchema)
-async def read_user_me(current_user: User = Depends(get_current_user)):
-    """
-    Get details of the current authenticated user
-    """
-    return current_user
-
-# -----------------------------------------
-# UPDATE CURRENT USER
-# -----------------------------------------
-@router.put("/me", response_model=UserSchema)
-async def update_user_me(
-    user_update: UserUpdate,
+@router.get("/dropdown", response_model=List[dict])
+def get_users_for_dropdown(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
-    Update current user profile
+    Get users in format suitable for dropdown selection
     """
-    if user_update.email and user_update.email != current_user.email:
-        existing_user = db.query(User).filter(User.email == user_update.email).first()
-        if existing_user:
-            raise HTTPException(
-                status_code=400,
-                detail="Email already registered"
-            )
-        current_user.email = user_update.email
-    
-    if user_update.full_name is not None:
-        current_user.full_name = user_update.full_name
-    
-    db.commit()
-    db.refresh(current_user)
-    return current_user
+    try:
+        users = db.query(User).filter(User.is_active == True).all()
+        return [
+            {
+                "id": user.id,
+                "label": f"{user.full_name or 'Unknown'} ({user.email})",
+                "email": user.email,
+                "full_name": user.full_name,
+                "role": user.role
+            }
+            for user in users
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching users for dropdown: {str(e)}")
 
-# -----------------------------------------
-# UPDATE CURRENT USER PASSWORD
-# -----------------------------------------
-@router.put("/me/password")
-async def update_user_password(
-    password_update: PasswordUpdate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """
-    Update current user password
-    """
-    # Verify current password
-    if not verify_password(password_update.current_password, current_user.hashed_password):
-        raise HTTPException(
-            status_code=400,
-            detail="Current password is incorrect"
-        )
-    
-    # Update password
-    current_user.hashed_password = get_password_hash(password_update.new_password)
-    db.commit()
-    
-    return {"message": "Password updated successfully"}
-
-# -----------------------------------------
-# CREATE NEW USER (Admin only)
-# -----------------------------------------
-@router.post("/", response_model=UserSchema)
-def create_user(
-    user_create: UserCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin)
-):
-    """
-    Create a new user (Admin only)
-    """
-    # Check if user already exists
-    existing_user = db.query(User).filter(User.email == user_create.email).first()
-    if existing_user:
-        raise HTTPException(
-            status_code=400,
-            detail="Email already registered"
-        )
-    
-    # Create new user
-    hashed_password = get_password_hash(user_create.password)
-    db_user = User(
-        email=user_create.email,
-        hashed_password=hashed_password,
-        full_name=user_create.full_name,
-        role=user_create.role or "viewer"
-    )
-    
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    return db_user
-
-# -----------------------------------------
-# GET USER BY ID (Admin only)
-# -----------------------------------------
 @router.get("/{user_id}", response_model=UserSchema)
-def read_user(
+def get_user_by_id(
     user_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin)
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Get user by ID (Admin only)
+    Get user by ID
     """
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    return user
+    try:
+        user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        return user
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching user: {str(e)}")
 
-# -----------------------------------------
-# UPDATE USER (Admin only)
-# -----------------------------------------
-@router.put("/{user_id}", response_model=UserSchema)
-def update_user(
-    user_id: int,
-    user_update: UserUpdate,
+@router.get("/email/{email}", response_model=UserSchema)
+def get_user_by_email(
+    email: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin)
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Update user (Admin only)
+    Get user by email
     """
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    if user_update.email and user_update.email != user.email:
-        existing_user = db.query(User).filter(User.email == user_update.email).first()
-        if existing_user:
-            raise HTTPException(
-                status_code=400,
-                detail="Email already registered"
-            )
-        user.email = user_update.email
-    
-    if user_update.full_name is not None:
-        user.full_name = user_update.full_name
-    
-    if user_update.role is not None:
-        user.role = user_update.role
-    
-    if user_update.is_active is not None:
-        user.is_active = user_update.is_active
-    
-    db.commit()
-    db.refresh(user)
-    return user
+    try:
+        user = db.query(User).filter(User.email == email, User.is_active == True).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        return user
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching user: {str(e)}")
 
-# -----------------------------------------
-# TOGGLE USER ACTIVE STATUS (Admin only)
-# -----------------------------------------
-@router.patch("/{user_id}/toggle-active", response_model=UserSchema)
-def toggle_user_active(
-    user_id: int,
+@router.get("/search/", response_model=List[UserSchema])
+def search_users(
+    query: str,
+    skip: int = 0,
+    limit: int = 100,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin)
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Toggle user active status (Admin only)
+    Search users by name or email
     """
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    # Prevent deactivating own account
-    if user.id == current_user.id:
-        raise HTTPException(
-            status_code=400,
-            detail="Cannot deactivate your own account"
-        )
-    
-    user.is_active = not user.is_active
-    db.commit()
-    db.refresh(user)
-    return user
+    try:
+        users = db.query(User).filter(
+            User.is_active == True,
+            (User.email.ilike(f"%{query}%")) | (User.full_name.ilike(f"%{query}%"))
+        ).offset(skip).limit(limit).all()
+        return users
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error searching users: {str(e)}")
 
-# -----------------------------------------
-# DELETE USER (Admin only)
-# -----------------------------------------
-@router.delete("/{user_id}")
-def delete_user(
-    user_id: int,
+@router.get("/role/{role}", response_model=List[UserSchema])
+def get_users_by_role(
+    role: str,
+    skip: int = 0,
+    limit: int = 100,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin)
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Delete user (Admin only)
+    Get users by role
     """
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    # Prevent deleting own account
-    if user.id == current_user.id:
-        raise HTTPException(
-            status_code=400,
-            detail="Cannot delete your own account"
-        )
-    
-    db.delete(user)
-    db.commit()
-    return {"message": "User deleted successfully"}
+    try:
+        if role not in ["admin", "viewer"]:
+            raise HTTPException(status_code=400, detail="Invalid role. Must be 'admin' or 'viewer'")
+        
+        users = db.query(User).filter(
+            User.role == role,
+            User.is_active == True
+        ).offset(skip).limit(limit).all()
+        return users
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching users by role: {str(e)}")
+
+@router.get("/stats/count")
+def get_user_stats(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get user statistics
+    """
+    try:
+        total_users = db.query(User).filter(User.is_active == True).count()
+        admin_count = db.query(User).filter(User.role == "admin", User.is_active == True).count()
+        viewer_count = db.query(User).filter(User.role == "viewer", User.is_active == True).count()
+        
+        return {
+            "total_users": total_users,
+            "admin_count": admin_count,
+            "viewer_count": viewer_count,
+            "admin_percentage": (admin_count / total_users * 100) if total_users > 0 else 0
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching user stats: {str(e)}")

@@ -1,4 +1,3 @@
-# backend/app/crud/chemical_crud.py - ENHANCED VERSION
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_, and_
 from typing import List, Optional

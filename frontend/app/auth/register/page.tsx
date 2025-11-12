@@ -1,4 +1,3 @@
-// app/auth/register/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -125,7 +124,7 @@ export default function RegisterPage() {
           <div className="flex justify-center items-center mb-6">
             <Beaker className="h-12 w-12 text-primary-600 mr-3" />
             <h1 className="text-4xl font-bold text-gray-900 dark:text-white">
-              SmartChem<span className="text-primary-600">View</span>
+              ReyChem<span className="text-primary-600">IQ</span>
             </h1>
           </div>
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white">

@@ -134,6 +134,10 @@ export const usersAPI = {
     const response = await api.get(`/users/${id}`);
     return response.data;
   },
+  getForDropdown: async (): Promise<Array<{id: number; label: string; email: string; full_name: string; role: string}>> => {
+    const response = await api.get('/users/dropdown');
+    return response.data;
+  }
 };
 
 // Chemicals API - ENHANCED
@@ -196,7 +200,7 @@ export const chemicalsAPI = {
   }
 };
 
-// Stock API - ENHANCED
+// Stock API - ENHANCED (WITH triggerDailyReport ADDED)
 export const stockAPI = {
   getAll: async (skip = 0, limit = 100): Promise<any[]> => {
     const response = await api.get(`/stock?skip=${skip}&limit=${limit}`);
@@ -251,6 +255,12 @@ export const stockAPI = {
 
   updateTriggerLevel: async (chemicalId: number, triggerLevel: number): Promise<any> => {
     const response = await api.put(`/stock/${chemicalId}/trigger-level`, { trigger_level: triggerLevel });
+    return response.data;
+  },
+
+  // NEW: Added missing triggerDailyReport method
+  triggerDailyReport: async (): Promise<{message: string}> => {
+    const response = await api.post('/reports/daily');
     return response.data;
   }
 };
@@ -411,6 +421,51 @@ export const msdsAPI = {
     const response = await api.get(`/msds/${chemicalId}`);
     return response.data;
   },
+
+  getHazardSummary: async (chemicalId: number): Promise<HazardSummary> => {
+    const response = await api.get(`/msds/${chemicalId}/hazard-summary`);
+    return response.data;
+  },
+
+  fetchMSDS: async (chemicalId: number): Promise<{message: string}> => {
+    const response = await api.post(`/msds/${chemicalId}/fetch`);
+    return response.data;
+  },
+
+  refreshMSDS: async (chemicalId: number): Promise<{message: string}> => {
+    const response = await api.post(`/msds/${chemicalId}/refresh`);
+    return response.data;
+  },
+
+  uploadMSDS: async (chemicalId: number, file: File): Promise<any> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const response = await api.post(`/msds/${chemicalId}/upload`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return response.data;
+  },
+
+  getMSDSFiles: async (chemicalId: number): Promise<any[]> => {
+    const response = await api.get(`/msds/${chemicalId}/files`);
+    return response.data;
+  },
+
+  getChemicalsWithoutMSDS: async (skip = 0, limit = 100): Promise<ChemicalWithStock[]> => {
+    const response = await api.get(`/msds/chemicals/without-msds?skip=${skip}&limit=${limit}`);
+    return response.data;
+  },
+
+  getChemicalsWithMSDS: async (skip = 0, limit = 100): Promise<ChemicalWithStock[]> => {
+    const response = await api.get(`/msds/chemicals/with-msds?skip=${skip}&limit=${limit}`);
+    return response.data;
+  },
+
+  getMSDSStats: async (): Promise<any> => {
+    const response = await api.get('/msds/stats/summary');
+    return response.data;
+  }
 };
 
 // Reports API

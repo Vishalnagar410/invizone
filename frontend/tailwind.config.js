@@ -13,60 +13,34 @@ module.exports = {
         inter: ['var(--font-inter)', 'system-ui', 'sans-serif'],
       },
       colors: {
-        // New Color Palette
-        'midnight-blue': '#0C2B4E',
-        'dark-blue': '#1A3D64', 
-        'cyan-blue': '#1D546C',
-        'light-gray': '#F4F4F4',
-        
-        // Brand colors with new palette
+        // New Color Palette from https://colorhunt.co/palette/2e0249570a57a91079f806cc
         primary: {
-          50: '#f0f9ff',
-          100: '#e0f2fe',
-          200: '#bae6fd',
-          300: '#7dd3fc',
-          400: '#38bdf8',
-          500: '#1D546C', // Cyan Blue
-          600: '#1A3D64', // Dark Blue
-          700: '#0C2B4E', // Midnight Blue
-          800: '#075985',
-          900: '#0c4a6e',
+          50: '#fdf2f8',
+          100: '#fce7f3',
+          200: '#fbcfe8',
+          300: '#f9a8d4',
+          400: '#f472b6',
+          500: '#a91079', // Bright Pink
+          600: '#f806cc', // Neon Pink
+          700: '#570a57', // Deep Purple
+          800: '#2e0249', // Dark Purple
+          900: '#1a011e',
         },
-        cyan: {
-          50: '#f0fdff',
-          100: '#ccf7ff',
-          200: '#99eeff',
-          300: '#66e0ff',
-          400: '#33ceff',
-          500: '#1D546C', // Cyan Blue
-          600: '#1A3D64', // Dark Blue
-          700: '#0C2B4E', // Midnight Blue
-          800: '#006699',
-          900: '#004d66',
+        // Alias for easier usage
+        purple: {
+          dark: '#2e0249',
+          deep: '#570a57',
         },
-        chemical: {
-          50: '#f0fdf4',
-          100: '#dcfce7',
-          200: '#bbf7d0',
-          300: '#86efac',
-          400: '#4ade80',
-          500: '#22c55e',
-          600: '#16a34a',
-          700: '#15803d',
-          800: '#166534',
-          900: '#14532d',
-        },
-        // Alert colors
-        alert: {
-          amber: '#FFB547',
-          red: '#ef4444',
-          green: '#22c55e',
+        pink: {
+          bright: '#a91079',
+          neon: '#f806cc',
         }
       },
       animation: {
         'fade-in': 'fadeIn 0.5s ease-in-out',
         'slide-up': 'slideUp 0.3s ease-out',
         'pulse-slow': 'pulse 3s infinite',
+        'gradient': 'gradient 3s ease infinite',
       },
       keyframes: {
         fadeIn: {
@@ -77,11 +51,16 @@ module.exports = {
           '0%': { transform: 'translateY(10px)', opacity: '0' },
           '100%': { transform: 'translateY(0)', opacity: '1' },
         },
+        gradient: {
+          '0%, 100%': { backgroundPosition: '0% 50%' },
+          '50%': { backgroundPosition: '100% 50%' },
+        },
       },
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
         'gradient-conic': 'conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))',
-        'chemical-pattern': "url('/chemical-pattern.svg')",
+        'chemical-gradient': 'linear-gradient(135deg, #2e0249 0%, #570a57 50%, #a91079 100%)',
+        'neon-gradient': 'linear-gradient(135deg, #a91079 0%, #f806cc 100%)',
       },
     },
   },

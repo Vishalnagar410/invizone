@@ -31,7 +31,7 @@ export interface Chemical {
 }
 
 export interface Stock {
-  chemical_id: number;
+  chemical_id?: number;
   current_quantity: number;
   unit: string;
   trigger_level: number;
@@ -86,6 +86,7 @@ export interface StockAdjustment {
   reason: 'Usage' | 'Spillage' | 'Received' | 'Correction' | 'Transfer' | 'Expired' | 'Other';
   note: string | null;
   timestamp: string;
+  chemical_name?: string;
   admin?: User;
   chemical?: Chemical;
 }
@@ -169,6 +170,66 @@ export interface StockFormData {
   current_quantity: number;
   unit: string;
   trigger_level: number;
+}
+
+// Extended Chemical Form Data with Container and Procurement fields
+export interface ExtendedChemicalFormData extends ChemicalFormData {
+  // Container Information (Optional)
+  container_id?: string;
+  container_type?: string;
+  quantity?: number;
+  quantity_unit?: string;
+  no_of_containers?: number;
+  total_weight_volume?: number;
+  tare_weight?: number;
+  supplier?: string;
+  batch_no?: string;
+  lot_no?: string;
+  expiry_date?: string;
+  
+  // Procurement Details (Optional)
+  project_code?: string;
+  requisitioner_id?: number; // Reference to user ID
+  approved_by_id?: number;   // Reference to user ID
+  po_date?: string;
+  invoice_no?: string;
+  invoice_date?: string;
+  date_received?: string;
+  
+  // Additional fields
+  synonyms?: string;
+}
+
+// Enhanced Chemical with additional fields
+export interface EnhancedChemicalWithStock extends ChemicalWithStock {
+  container_info?: ContainerInfo;
+  procurement_info?: ProcurementInfo;
+}
+
+export interface ContainerInfo {
+  container_id?: string;
+  container_type?: string;
+  quantity?: number;
+  quantity_unit?: string;
+  no_of_containers?: number;
+  total_weight_volume?: number;
+  tare_weight?: number;
+  supplier?: string;
+  batch_no?: string;
+  lot_no?: string;
+  expiry_date?: string;
+}
+
+export interface ProcurementInfo {
+  project_code?: string;
+  requisitioner_id?: number;
+  approved_by_id?: number;
+  po_date?: string;
+  invoice_no?: string;
+  invoice_date?: string;
+  date_received?: string;
+  requisitioner?: User;
+  approved_by?: User;
 }
 
 // NEW: Location Form Data

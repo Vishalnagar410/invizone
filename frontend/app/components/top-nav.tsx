@@ -18,13 +18,13 @@ import { ThemeToggle } from './theme-toggle';
 import { useState } from 'react';
 import Image from 'next/image';
 
+// Remove Settings from main navigation
 const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: Package },
   { name: 'Search', href: '/dashboard/search', icon: Search },
   { name: 'Add Chemical', href: '/dashboard/add', icon: Package },
   { name: 'Stock', href: '/dashboard/stock', icon: Package },
   { name: 'MSDS', href: '/dashboard/msds', icon: FileText },
-  { name: 'Settings', href: '/dashboard/settings', icon: Settings },
+  // Settings removed from main nav - now in user dropdown
 ];
 
 export function TopNav() {
@@ -36,34 +36,37 @@ export function TopNav() {
   return (
     <>
       {/* Top Navigation Bar */}
-      <nav className="bg-midnight-blue border-b border-cyan-500/20 fixed top-0 left-0 right-0 z-50">
+      <nav className="bg-[#2e0249] border-b border-[#f806cc]/20 fixed top-0 left-0 right-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            {/* Left side - Logo and Navigation */}
-            <div className="flex items-center">
-              {/* Logo */}
-              <Link href="/dashboard" className="flex items-center gap-3">
-                <div className="flex items-center justify-center w-10 h-10 bg-cyan-500 rounded-lg">
-                  <Image 
-                    src="/logo_reychemiq.png" 
-                    alt="ReyChemIQ" 
-                    width={32} 
-                    height={32}
-                    className="text-white"
-                  />
-                </div>
-                <div className="flex flex-col">
-                  <h1 className="text-xl font-bold text-white font-poppins">
-                    ReyChem<span className="text-cyan-300">IQ</span>
-                  </h1>
-                  <p className="text-xs text-cyan-200/80">
-                    Smart Chemistry. Intelligent Inventory.
-                  </p>
-                </div>
+          <div className="flex justify-between items-center h-20">
+            {/* Left side - Logo and Branding */}
+            <div className="flex items-center gap-4">
+              {/* Logo - Plain without background/border */}
+              <Link href="/dashboard" className="flex items-center">
+                <Image 
+                  src="/logo_reychemiq.png" 
+                  alt="ReyChemIQ" 
+                  width={40} 
+                  height={40}
+                  className="text-white"
+                />
               </Link>
 
+              {/* Branding Section */}
+              <div className="flex flex-col">
+                <h1 className="text-xl font-bold text-white font-poppins">
+                  ReyChem<span className="text-cyan-300">IQ</span>
+                </h1>
+                <p className="text-xs text-cyan-200/80">
+                  Smart Chemistry. Intelligent Inventory.
+                </p>
+              </div>
+            </div>
+
+            {/* Right side - Navigation and Controls */}
+            <div className="flex items-center space-x-2">
               {/* Desktop Navigation */}
-              <div className="hidden md:ml-8 md:flex md:items-center md:space-x-1">
+              <div className="hidden md:flex md:items-center md:space-x-2">
                 {navigation.map((item) => {
                   const Icon = item.icon;
                   const isActive = pathname === item.href;
@@ -72,10 +75,10 @@ export function TopNav() {
                     <Link
                       key={item.name}
                       href={item.href}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
                         isActive
-                          ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 shadow-lg shadow-cyan-500/10'
-                          : 'text-cyan-100/80 hover:bg-cyan-500/10 hover:text-cyan-200 border border-transparent'
+                          ? 'bg-[#f806cc]/20 text-[#f806cc] border border-[#f806cc]/30 shadow-lg shadow-[#f806cc]/10'
+                          : 'text-white/80 hover:bg-[#f806cc]/10 hover:text-white border border-transparent'
                       }`}
                     >
                       <Icon className="h-4 w-4" />
@@ -84,12 +87,9 @@ export function TopNav() {
                   );
                 })}
               </div>
-            </div>
 
-            {/* Right side - User menu and controls */}
-            <div className="flex items-center space-x-4">
               {/* Theme Toggle */}
-              <div className="bg-cyan-500/10 rounded-lg p-1">
+              <div className="bg-[#f806cc]/10 rounded-xl p-2">
                 <ThemeToggle />
               </div>
 
@@ -97,7 +97,7 @@ export function TopNav() {
               <div className="relative">
                 <button
                   onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-cyan-100 hover:bg-cyan-500/20 rounded-lg transition-colors border border-cyan-500/20"
+                  className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-white hover:bg-[#f806cc]/20 rounded-xl transition-colors border border-[#f806cc]/20"
                 >
                   <User className="h-5 w-5" />
                   <span className="hidden sm:block max-w-32 truncate">
@@ -108,24 +108,34 @@ export function TopNav() {
 
                 {/* User Dropdown Menu */}
                 {isUserMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-64 bg-midnight-blue rounded-lg shadow-xl border border-cyan-500/20 py-2 z-50 backdrop-blur-sm">
-                    <div className="px-4 py-3 border-b border-cyan-500/20">
-                      <div className="text-xs text-cyan-200/60">Logged in as:</div>
-                      <div className="font-medium text-cyan-100 truncate text-sm">
+                  <div className="absolute right-0 mt-2 w-64 bg-[#2e0249] rounded-xl shadow-xl border border-[#f806cc]/20 py-2 z-50 backdrop-blur-sm">
+                    <div className="px-4 py-3 border-b border-[#f806cc]/20">
+                      <div className="text-xs text-white/60">Logged in as:</div>
+                      <div className="font-medium text-white truncate text-sm">
                         {user?.email}
                       </div>
-                      <div className="text-xs text-cyan-300 mt-1">
+                      <div className="text-xs text-[#f806cc] mt-1">
                         Role: <span className="font-semibold capitalize">{user?.role}</span>
                       </div>
                     </div>
                     
-                    <div className="px-4 py-2 text-xs text-cyan-200/60 border-b border-cyan-500/20">
+                    {/* Settings Link in Dropdown */}
+                    <Link
+                      href="/dashboard/settings"
+                      onClick={() => setIsUserMenuOpen(false)}
+                      className="flex items-center gap-2 w-full px-4 py-3 text-sm text-white hover:bg-[#f806cc]/20 transition-colors border-b border-[#f806cc]/10"
+                    >
+                      <Settings className="h-4 w-4" />
+                      Settings
+                    </Link>
+                    
+                    <div className="px-4 py-2 text-xs text-white/60 border-b border-[#f806cc]/20">
                       Developed by Mann, Reyaan & Vishal
                     </div>
                     
                     <button
                       onClick={logout}
-                      className="flex items-center gap-2 w-full px-4 py-3 text-sm text-cyan-100 hover:bg-cyan-500/20 transition-colors"
+                      className="flex items-center gap-2 w-full px-4 py-3 text-sm text-white hover:bg-[#f806cc]/20 transition-colors"
                     >
                       <LogOut className="h-4 w-4" />
                       Sign Out
@@ -137,7 +147,7 @@ export function TopNav() {
               {/* Mobile menu button */}
               <button
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="md:hidden p-2 rounded-lg text-cyan-100 hover:bg-cyan-500/20 border border-cyan-500/20"
+                className="md:hidden p-2 rounded-xl text-white hover:bg-[#f806cc]/20 border border-[#f806cc]/20"
               >
                 {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
               </button>
@@ -147,7 +157,7 @@ export function TopNav() {
 
         {/* Mobile Navigation Menu */}
         {isMobileMenuOpen && (
-          <div className="md:hidden border-t border-cyan-500/20 bg-midnight-blue/95 backdrop-blur-sm">
+          <div className="md:hidden border-t border-[#f806cc]/20 bg-[#2e0249]/95 backdrop-blur-sm">
             <div className="px-2 pt-2 pb-3 space-y-1">
               {navigation.map((item) => {
                 const Icon = item.icon;
@@ -158,10 +168,10 @@ export function TopNav() {
                     key={item.name}
                     href={item.href}
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className={`flex items-center gap-3 px-3 py-3 rounded-lg text-base font-medium transition-all ${
+                    className={`flex items-center gap-3 px-3 py-3 rounded-xl text-base font-medium transition-all ${
                       isActive
-                        ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
-                        : 'text-cyan-100/80 hover:bg-cyan-500/10 hover:text-cyan-200 border border-transparent'
+                        ? 'bg-[#f806cc]/20 text-[#f806cc] border border-[#f806cc]/30'
+                        : 'text-white/80 hover:bg-[#f806cc]/10 hover:text-white border border-transparent'
                     }`}
                   >
                     <Icon className="h-5 w-5" />
@@ -169,6 +179,15 @@ export function TopNav() {
                   </Link>
                 );
               })}
+              {/* Settings in mobile menu */}
+              <Link
+                href="/dashboard/settings"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="flex items-center gap-3 px-3 py-3 rounded-xl text-base font-medium text-white/80 hover:bg-[#f806cc]/10 hover:text-white border border-transparent"
+              >
+                <Settings className="h-5 w-5" />
+                <span>Settings</span>
+              </Link>
             </div>
           </div>
         )}

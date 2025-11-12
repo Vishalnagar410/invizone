@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ChemicalWithStock } from '@/types';
+import { ChemicalWithStock, StockAdjustment } from '@/types';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { RefreshCw, Wifi, WifiOff, AlertTriangle, Package } from 'lucide-react';
 
@@ -33,21 +33,27 @@ export function RealTimeStockTable({ initialChemicals, onChemicalUpdate }: RealT
     }
   }, [latestChemical, onChemicalUpdate]);
 
-  // Handle stock adjustments
+  // Handle stock adjustments - FIXED TypeScript error
   useEffect(() => {
     if (latestStockAdjustment) {
       setChemicals(prev => 
-        prev.map(chem => 
-          chem.id === latestStockAdjustment.chemical_id 
-            ? { 
-                ...chem, 
-                stock: { 
-                  ...chem.stock, 
-                  current_quantity: latestStockAdjustment.after_quantity 
-                } 
-              } 
-            : chem
-        )
+        prev.map(chem => {
+          if (chem.id === latestStockAdjustment.chemical_id) {
+            return {
+              ...chem,
+              stock: chem.stock ? {
+                ...chem.stock,
+                current_quantity: latestStockAdjustment.after_quantity
+              } : {
+                current_quantity: latestStockAdjustment.after_quantity,
+                unit: 'g', // Default unit
+                trigger_level: 10, // Default trigger level
+                last_updated: new Date().toISOString()
+              }
+            };
+          }
+          return chem;
+        })
       );
     }
   }, [latestStockAdjustment]);
@@ -68,6 +74,17 @@ export function RealTimeStockTable({ initialChemicals, onChemicalUpdate }: RealT
       case 'error': return 'Connection Error';
       default: return 'Disconnected';
     }
+  };
+
+  // Get chemical name for stock adjustment display
+  const getChemicalNameForAdjustment = (adjustment: StockAdjustment) => {
+    if (adjustment.chemical_name) {
+      return adjustment.chemical_name;
+    }
+    
+    // Fallback: find chemical in current list
+    const chemical = chemicals.find(chem => chem.id === adjustment.chemical_id);
+    return chemical?.name || `Chemical ${adjustment.chemical_id}`;
   };
 
   return (
@@ -162,11 +179,11 @@ export function RealTimeStockTable({ initialChemicals, onChemicalUpdate }: RealT
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm text-gray-900 dark:text-white">
-                    {chemical.stock?.current_quantity || 0} {chemical.stock?.unit}
+                    {chemical.stock?.current_quantity || 0} {chemical.stock?.unit || 'g'}
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                  {chemical.minimum_quantity || 10} {chemical.stock?.unit}
+                  {chemical.minimum_quantity || 10} {chemical.stock?.unit || 'g'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   {chemical.stock && chemical.stock.current_quantity <= (chemical.minimum_quantity || 10) ? (
@@ -221,7 +238,8 @@ export function RealTimeStockTable({ initialChemicals, onChemicalUpdate }: RealT
                     Stock adjusted
                   </span>
                   <span className="text-green-700 dark:text-green-300 ml-2">
-                    {latestStockAdjustment.chemical_name}: {latestStockAdjustment.before_quantity} → {latestStockAdjustment.after_quantity}
+                    {/* FIXED: Use helper function instead of direct property access */}
+                    {getChemicalNameForAdjustment(latestStockAdjustment)}: {latestStockAdjustment.before_quantity} → {latestStockAdjustment.after_quantity}
                   </span>
                 </div>
               </div>

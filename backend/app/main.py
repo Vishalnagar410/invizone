@@ -1,10 +1,11 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from sqlalchemy import text  # Import text for SQLAlchemy 2.0 compatibility
+from sqlalchemy import text
 import uvicorn
 import os
 from dotenv import load_dotenv
+from fastapi.staticfiles import StaticFiles
 
 # Load environment variables
 load_dotenv()
@@ -12,7 +13,7 @@ load_dotenv()
 # Import from current package using relative imports
 from .database import engine, get_db
 from .models import Base
-from .api import auth, chemicals, stock, msds, users, reports, locations, barcodes, stock_adjustments
+from .api import chemicals, stock, msds, users, reports, locations, barcodes, stock_adjustments
 from .websocket import socket_app
 from .api import molecular
 
@@ -36,8 +37,15 @@ app = FastAPI(
         "url": "https://opensource.org/licenses/MIT",
     }
 )
+
 # Include molecular calculations router
 app.include_router(molecular.router, prefix="/molecular", tags=["molecular-calculations"])
+
+# Include the users router
+app.include_router(users.router, prefix="/users", tags=["users"])
+
+# Add for serving static files liek Template.csv,images etc.
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 # CORS middleware - allow all origins for development
 app.add_middleware(
@@ -48,9 +56,30 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include all routers
-app.include_router(auth.router, prefix="/auth", tags=["authentication"])
-app.include_router(users.router, prefix="/users", tags=["users"])
+# FIXED: Import auth router from the correct location
+try:
+    # Try importing from app.api.auth first (where your routes are)
+    from .api.auth import router as auth_router
+    app.include_router(auth_router, prefix="/auth", tags=["authentication"])
+    print("✅ Auth router included from app.api.auth")
+except ImportError:
+    # Fallback to app.auth.auth
+    try:
+        from .auth.auth import router as auth_router
+        app.include_router(auth_router, prefix="/auth", tags=["authentication"])
+        print("✅ Auth router included from app.auth.auth")
+    except ImportError as e:
+        print(f"❌ Auth router not found: {e}")
+
+# Conditionally include OAuth router if it exists
+try:
+    from .auth.oauth import router as oauth_router
+    app.include_router(oauth_router, prefix="/auth", tags=["oauth"])
+    print("✅ OAuth router included")
+except ImportError as e:
+    print(f"⚠️  OAuth router not found - skipping OAuth endpoints: {e}")
+
+# Include all other routers
 app.include_router(chemicals.router, prefix="/chemicals", tags=["chemicals"])
 app.include_router(stock.router, prefix="/stock", tags=["stock"])
 app.include_router(msds.router, prefix="/msds", tags=["msds"])

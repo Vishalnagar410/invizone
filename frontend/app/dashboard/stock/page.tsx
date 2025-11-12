@@ -1,15 +1,17 @@
+// frontend/app/dashboard/stock/page.tsx - UPDATED VERSION
 'use client';
 
 import { useState, useEffect } from 'react';
-import { RealTimeStockTable } from '../../components/real-time-stock-table';
+import { EnhancedStockTable } from '../../components/enhanced-stock-table';
 import { ChemicalWithStock } from '@/types';
-import { Package, RefreshCw, Download, Filter } from 'lucide-react';
+import { Package, Download, Plus } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 export default function StockPage() {
   const [chemicals, setChemicals] = useState<ChemicalWithStock[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
-  const [filter, setFilter] = useState<'all' | 'low-stock'>('all');
+  const router = useRouter();
 
   const fetchChemicals = async () => {
     try {
@@ -37,22 +39,46 @@ export default function StockPage() {
     fetchChemicals();
   }, []);
 
-  const filteredChemicals = chemicals.filter(chemical => {
-    if (filter === 'low-stock') {
-      return chemical.stock && chemical.stock.current_quantity <= (chemical.minimum_quantity || 10);
-    }
-    return true;
-  });
-
   const handleChemicalUpdate = (updatedChemicals: ChemicalWithStock[]) => {
     setChemicals(updatedChemicals);
   };
 
+  const handleEditChemical = (chemical: ChemicalWithStock) => {
+    // Navigate to edit page or open edit modal
+    console.log('Edit chemical:', chemical);
+    // router.push(`/dashboard/chemicals/edit/${chemical.id}`);
+  };
+
+  const handleDeleteChemical = async (chemical: ChemicalWithStock) => {
+    if (!confirm(`Are you sure you want to delete ${chemical.name}?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:8000/chemicals/${chemical.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+        }
+      });
+
+      if (response.ok) {
+        // Remove chemical from list
+        setChemicals(prev => prev.filter(c => c.id !== chemical.id));
+      } else {
+        throw new Error('Failed to delete chemical');
+      }
+    } catch (err) {
+      alert('Failed to delete chemical: ' + (err instanceof Error ? err.message : 'Unknown error'));
+    }
+  };
+
   const exportToCSV = () => {
-    const headers = ['Name', 'CAS Number', 'Location', 'Current Stock', 'Unit', 'Min Quantity', 'Status'];
-    const csvData = filteredChemicals.map(chem => [
+    const headers = ['Name', 'CAS Number', 'Molecular Formula', 'Location', 'Current Stock', 'Unit', 'Min Quantity', 'Status'];
+    const csvData = chemicals.map(chem => [
       chem.name,
       chem.cas_number,
+      chem.molecular_formula || 'N/A',
       chem.location?.name || 'No Location',
       chem.stock?.current_quantity || 0,
       chem.stock?.unit || 'g',
@@ -96,10 +122,10 @@ export default function StockPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <h1 className="text-3xl font-bold text-gray-900 dark:text-white font-poppins">
-                    Chemical Stock
+                    Chemical Stock Management
                   </h1>
                   <p className="text-gray-600 dark:text-gray-400 mt-2">
-                    Real-time inventory management with live updates
+                    Real-time inventory with detailed chemical information and role-based access
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
@@ -111,44 +137,13 @@ export default function StockPage() {
                     Export CSV
                   </button>
                   <button
-                    onClick={fetchChemicals}
-                    disabled={isLoading}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50"
+                    onClick={() => router.push('/dashboard/add')}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
                   >
-                    <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-                    Refresh
+                    <Plus className="h-4 w-4" />
+                    Add Chemical
                   </button>
                 </div>
-              </div>
-            </div>
-
-            {/* Filters */}
-            <div className="mb-6">
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <Filter className="h-4 w-4 text-gray-500" />
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Filter:</span>
-                </div>
-                <button
-                  onClick={() => setFilter('all')}
-                  className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                    filter === 'all'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                  }`}
-                >
-                  All Chemicals
-                </button>
-                <button
-                  onClick={() => setFilter('low-stock')}
-                  className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                    filter === 'low-stock'
-                      ? 'bg-red-600 text-white'
-                      : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                  }`}
-                >
-                  Low Stock
-                </button>
               </div>
             </div>
 
@@ -167,23 +162,25 @@ export default function StockPage() {
                 <div className="text-sm text-gray-500 dark:text-gray-400">In Stock</div>
               </div>
               <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-                <div className="text-2xl font-bold text-red-600 dark:text-red-400">
-                  {chemicals.filter(c => c.stock && c.stock.current_quantity <= (c.minimum_quantity || 10)).length}
+                <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
+                  {chemicals.filter(c => c.stock && c.stock.current_quantity <= (c.minimum_quantity || 10) && c.stock.current_quantity > 0).length}
                 </div>
                 <div className="text-sm text-gray-500 dark:text-gray-400">Low Stock</div>
               </div>
               <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-                <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                  {new Set(chemicals.map(c => c.location?.name).filter(Boolean)).size}
+                <div className="text-2xl font-bold text-red-600 dark:text-red-400">
+                  {chemicals.filter(c => c.stock && c.stock.current_quantity <= 0).length}
                 </div>
-                <div className="text-sm text-gray-500 dark:text-gray-400">Locations</div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">Out of Stock</div>
               </div>
             </div>
 
-            {/* Real-time Stock Table */}
-            <RealTimeStockTable 
-              initialChemicals={filteredChemicals}
+            {/* Enhanced Stock Table */}
+            <EnhancedStockTable 
+              initialChemicals={chemicals}
               onChemicalUpdate={handleChemicalUpdate}
+              onEditChemical={handleEditChemical}
+              onDeleteChemical={handleDeleteChemical}
             />
           </div>
         </div>

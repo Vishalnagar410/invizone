@@ -421,10 +421,13 @@ def search_pubchem(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Search PubChem for chemical information
+    Search PubChem for chemical information with enhanced fallback to molecular service
     """
     try:
+        logger.info(f"🔍 PubChem search - Type: {search_type}, Query: {query}")
+        
         compound_data = None
+        source = "pubchem"
         
         if search_type == "name":
             compound_data = pubchem_service.get_compound_by_name(query)
@@ -433,56 +436,52 @@ def search_pubchem(
         elif search_type == "cas":
             compound_data = pubchem_service.get_compound_by_cas(query)
         else:
-            raise HTTPException(status_code=400, detail="Invalid search type")
+            raise HTTPException(status_code=400, detail="Invalid search type. Use 'name', 'smiles', or 'cas'")
         
-        if not compound_data:
-            raise HTTPException(status_code=404, detail="Chemical not found in PubChem")
-        
-        # Extract relevant data from PubChem response
-        compound = compound_data.get('PC_Compounds', [{}])[0]
-        props = compound.get('props', [])
-        
-        # Extract basic information
-        cid = compound.get('id', {}).get('id', {}).get('cid')
-        
-        # Extract name, SMILES, formula, etc.
-        name = query if search_type == "name" else None
-        smiles = query if search_type == "smiles" else None
-        cas_number = query if search_type == "cas" else None
-        molecular_formula = None
-        molecular_weight = None
-        
-        for prop in props:
-            urn = prop.get('urn', {})
-            label = urn.get('label', '').lower()
-            value = prop.get('value', {})
+        # Extract data from PubChem response
+        if compound_data:
+            compound_info = pubchem_service.extract_compound_info(compound_data)
+            logger.info(f"✅ PubChem data found: {compound_info.get('name', 'Unknown')}")
+        else:
+            # Fallback to molecular service
+            logger.info("🔄 PubChem failed, trying molecular service...")
+            from app.services.molecular_service import molecular_service
+            mol_properties = molecular_service.calculate_molecular_properties(query)
+            source = "molecular_service"
             
-            if 'molecular formula' in label and value.get('sval'):
-                molecular_formula = value['sval']
-            elif 'molecular weight' in label and value.get('fval'):
-                molecular_weight = value['fval']
-            elif 'iupac name' in label and value.get('sval') and not name:
-                name = value['sval']
-            elif 'canonical smiles' in label and value.get('sval') and not smiles:
-                smiles = value['sval']
-            elif 'cas' in label and value.get('sval') and not cas_number:
-                cas_number = value['sval']
+            if mol_properties:
+                compound_info = {
+                    'name': f"Compound ({mol_properties.get('molecular_formula', 'Unknown')})",
+                    'smiles': query,
+                    'canonical_smiles': mol_properties.get('canonical_smiles', query),
+                    'molecular_formula': mol_properties.get('molecular_formula'),
+                    'molecular_weight': mol_properties.get('molecular_weight'),
+                    'cas_number': "Not found - enter manually",
+                    'source': source
+                }
+                logger.info(f"✅ Molecular service data found: {compound_info['name']}")
+            else:
+                logger.warning("❌ Both PubChem and molecular service failed")
+                raise HTTPException(status_code=404, detail="Chemical not found in any database")
         
+        # Return standardized response
         return PubChemCompound(
-            cid=cid,
-            name=name,
-            smiles=smiles,
-            canonical_smiles=smiles,  # Use the same for simplicity
-            molecular_formula=molecular_formula,
-            molecular_weight=molecular_weight,
-            cas_number=cas_number
+            cid=compound_info.get('cid', 0),
+            name=compound_info.get('name', 'Unknown Compound'),
+            smiles=compound_info.get('smiles', query),
+            canonical_smiles=compound_info.get('canonical_smiles', query),
+            molecular_formula=compound_info.get('molecular_formula', 'Unknown'),
+            molecular_weight=compound_info.get('molecular_weight'),
+            cas_number=compound_info.get('cas_number', 'Not found - enter manually'),
+            source=compound_info.get('source', source)
         )
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"PubChem search error: {e}")
-        raise HTTPException(status_code=500, detail="Error searching PubChem")
+        logger.error(f"❌ PubChem search error: {e}")
+        raise HTTPException(status_code=500, detail=f"Error searching chemical databases: {str(e)}")
+    
 
 # --------------------------------------------------------------------
 # Get safety data from PubChem

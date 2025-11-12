@@ -432,7 +432,8 @@ export const useRDKitUtils = () => {
       isValid: properties.isValid,
       name: properties.name,
       type: properties.type,
-      svg: generateStructureSVG(cleanSmiles)
+      svg: generateStructureSVG(cleanSmiles),
+      canonicalSmiles: getCanonicalSmiles(cleanSmiles) // Add this line
     };
   };
 

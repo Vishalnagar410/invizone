@@ -3,13 +3,51 @@
 import { useState } from 'react';
 import { CSVUpload } from '../../components/csv-upload';
 import { EnhancedChemicalForm } from '../../components/enhanced-chemical-form';
-import { Upload, Beaker, Database } from 'lucide-react';
+import { Upload, Beaker, Database, Download } from 'lucide-react';
 
 export default function AddChemicalPage() {
   const [uploadResults, setUploadResults] = useState<any[]>([]);
 
   const handleUploadComplete = (results: any[]) => {
     setUploadResults(results);
+  };
+
+  const handleDownloadTemplate = async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+      
+      // Method 1: Direct download using fetch with proper headers
+      const response = await fetch('http://localhost:8000/static/Template.csv', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'text/csv',
+        }
+      });
+      
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = 'Chemical_Inventory_Template.csv';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        console.log('✅ Template downloaded successfully');
+      } else {
+        console.error('❌ Download failed:', response.status);
+        // Fallback: Open in new tab
+        window.open('http://localhost:8000/static/Template.csv', '_blank');
+      }
+    } catch (error) {
+      console.error('❌ Download failed:', error);
+      // Final fallback - direct link
+      window.open('http://localhost:8000/static/Template.csv', '_blank');
+    }
   };
 
   return (
@@ -63,6 +101,27 @@ export default function AddChemicalPage() {
                 </p>
               </div>
               <div className="p-6">
+                {/* Template Download */}
+                <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-medium text-blue-900 dark:text-blue-100">
+                        Download CSV Template
+                      </h3>
+                      <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                        Use our template to ensure proper formatting for bulk upload
+                      </p>
+                    </div>
+                    <button
+                      onClick={handleDownloadTemplate}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                    >
+                      <Download className="h-4 w-4" />
+                      Download Template
+                    </button>
+                  </div>
+                </div>
+
                 <CSVUpload onUploadComplete={handleUploadComplete} />
               </div>
             </div>

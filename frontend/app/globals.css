@@ -11,8 +11,8 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 12, 43, 78;
-    --background-end-rgb: 26, 61, 100;
+    --background-start-rgb: 46, 2, 73;
+    --background-end-rgb: 87, 10, 87;
   }
 }
 
@@ -26,22 +26,30 @@ body {
     rgb(var(--background-start-rgb));
 }
 
+/* New Color Palette Variables */
+:root {
+  --color-dark-purple: #2e0249;
+  --color-deep-purple: #570a57;
+  --color-bright-pink: #a91079;
+  --color-neon-pink: #f806cc;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #1A3D64;
+  background: #570a57;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1D546C;
+  background: #a91079;
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #0C2B4E;
+  background: #f806cc;
 }
 
 /* Glass morphism effect */
@@ -59,4 +67,166 @@ body {
 
 .bond-pulse {
   animation: bond-pulse 2s ease-in-out infinite;
+}
+
+/* Logo styling - clean and prominent */
+.logo-clean {
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1));
+}
+
+/* Remove any borders and backgrounds from logo container */
+.logo-container {
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Ensure logo is properly sized and centered */
+.homepage-logo {
+  max-width: 120px;
+  height: auto;
+  margin: 0 auto;
+}
+
+/* Logo enhancements for homepage */
+.homepage-header .logo-image {
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+}
+
+/* Remove any background from logo wrapper */
+.logo-wrapper {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  border: none !important;
+}
+
+/* Custom component classes */
+@layer components {
+  .btn-primary {
+    @apply bg-gradient-to-r from-[#a91079] to-[#f806cc] hover:from-[#f806cc] hover:to-[#a91079] text-white font-medium py-2 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-[#f806cc] focus:ring-opacity-50;
+  }
+  
+  .btn-secondary {
+    @apply bg-gradient-to-r from-[#2e0249] to-[#570a57] hover:from-[#570a57] hover:to-[#2e0249] text-white font-medium py-2 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-[#570a57] focus:ring-opacity-50;
+  }
+  
+  .card {
+    @apply bg-white/80 dark:bg-[#2e0249]/80 backdrop-blur-sm border border-[#a91079]/20 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300;
+  }
+}
+
+/* Animation classes */
+@layer utilities {
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+  }
+  
+  .animate-slide-up {
+    animation: slideUp 0.3s ease-out;
+  }
+  
+  .animate-pulse-slow {
+    animation: pulse 3s infinite;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { 
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to { 
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Responsive design helpers */
+@media (max-width: 768px) {
+  .homepage-logo {
+    max-width: 80px;
+  }
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Focus styles for better accessibility */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #f806cc;
+  outline-offset: 2px;
+}
+
+/* Selection styles */
+::selection {
+  background-color: rgba(168, 16, 121, 0.3);
+  color: inherit;
+}
+
+/* Loading states */
+.loading {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* Error states */
+.error-border {
+  border-color: #ef4444 !important;
+}
+
+/* Success states */
+.success-border {
+  border-color: #22c55e !important;
+}
+
+/* Custom gradient backgrounds */
+.gradient-chemical {
+  background: linear-gradient(135deg, #2e0249 0%, #570a57 50%, #a91079 100%);
+}
+
+.gradient-neon {
+  background: linear-gradient(135deg, #a91079 0%, #f806cc 100%);
+}
+
+/* Dark mode overrides */
+@media (prefers-color-scheme: dark) {
+  .card {
+    @apply bg-[#2e0249]/80;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .btn-primary {
+    border: 2px solid currentColor;
+  }
+  
+  .card {
+    border: 2px solid currentColor;
+  }
 }

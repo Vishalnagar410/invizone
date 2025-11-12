@@ -41,67 +41,74 @@ class MolecularService:
             logger.error(f"❌ RDKit initialization failed: {e}")
             self.rdkit_available = False
     
-    def calculate_molecular_properties(self, smiles: str) -> Optional[Dict[str, Any]]:
-        """
-        Calculate comprehensive molecular properties using RDKit
-        """
-        if not self.rdkit_available:
-            return self._calculate_properties_fallback(smiles)
+def calculate_molecular_properties(self, smiles: str) -> Optional[Dict[str, Any]]:
+    """
+    Calculate comprehensive molecular properties using RDKit with enhanced accuracy
+    """
+    if not self.rdkit_available:
+        return self._calculate_properties_fallback(smiles)
+    
+    try:
+        # Clean SMILES first
+        clean_smiles = smiles.strip()
+        mol = self.Chem.MolFromSmiles(clean_smiles)
+        if not mol:
+            logger.warning(f"❌ RDKit could not parse SMILES: {clean_smiles}")
+            return self._calculate_properties_fallback(clean_smiles)
         
-        try:
-            mol = self.Chem.MolFromSmiles(smiles)
-            if not mol:
-                logger.warning(f"RDKit could not parse SMILES: {smiles}")
-                return self._calculate_properties_fallback(smiles)
-            
-            # Calculate basic properties
-            molecular_weight = self.CalcExactMolWt(mol)
-            molecular_formula = self.CalcMolFormula(mol)
-            
-            # Generate canonical SMILES
-            canonical_smiles = self.Chem.MolToSmiles(mol, canonical=True)
-            
-            # Generate InChI and InChIKey
-            inchi = self.MolToInchi(mol)
-            inchikey = self.MolToInchiKey(mol)
-            
-            # Calculate additional descriptors
-            logp = self.Descriptors.MolLogP(mol)
-            tpsa = self.Descriptors.TPSA(mol)
-            hbd = self.Descriptors.NumHDonors(mol)
-            hba = self.Descriptors.NumHAcceptors(mol)
-            rotatable_bonds = self.Descriptors.NumRotatableBonds(mol)
-            heavy_atom_count = self.Descriptors.HeavyAtomCount(mol)
-            formal_charge = self.Chem.GetFormalCharge(mol)
-            
-            # Generate 2D coordinates
-            self.AllChem.Compute2DCoords(mol)
-            
-            properties = {
-                "canonical_smiles": canonical_smiles,
-                "molecular_formula": molecular_formula,
-                "molecular_weight": round(molecular_weight, 4),
-                "inchi": inchi,
-                "inchikey": inchikey,
-                "logp": round(logp, 2),
-                "tpsa": round(tpsa, 2),
-                "hydrogen_bond_donors": hbd,
-                "hydrogen_bond_acceptors": hba,
-                "rotatable_bonds": rotatable_bonds,
-                "heavy_atom_count": heavy_atom_count,
-                "formal_charge": formal_charge,
-                "atom_count": mol.GetNumAtoms(),
-                "ring_count": self.Chem.rdMolDescriptors.CalcNumRings(mol),
-                "aromatic_rings": self.Chem.rdMolDescriptors.CalcNumAromaticRings(mol),
-                "calculation_source": "rdkit"
-            }
-            
-            logger.info(f"Calculated properties for SMILES: {smiles}")
-            return properties
-            
-        except Exception as e:
-            logger.error(f"RDKit property calculation failed: {e}")
-            return self._calculate_properties_fallback(smiles)
+        # Calculate basic properties
+        molecular_weight = self.CalcExactMolWt(mol)
+        molecular_formula = self.CalcMolFormula(mol)
+        
+        # Generate canonical SMILES (this fixes structure representation)
+        canonical_smiles = self.Chem.MolToSmiles(mol, canonical=True)
+        
+        # Generate InChI and InChIKey
+        inchi = self.MolToInchi(mol)
+        inchikey = self.MolToInchiKey(mol)
+        
+        # Calculate additional descriptors
+        logp = self.Descriptors.MolLogP(mol)
+        tpsa = self.Descriptors.TPSA(mol)
+        hbd = self.Descriptors.NumHDonors(mol)
+        hba = self.Descriptors.NumHAcceptors(mol)
+        rotatable_bonds = self.Descriptors.NumRotatableBonds(mol)
+        heavy_atom_count = self.Descriptors.HeavyAtomCount(mol)
+        formal_charge = self.Chem.GetFormalCharge(mol)
+        
+        # Generate 2D coordinates
+        self.AllChem.Compute2DCoords(mol)
+        
+        # Enhanced property calculation
+        properties = {
+            "canonical_smiles": canonical_smiles,
+            "molecular_formula": molecular_formula,
+            "molecular_weight": round(molecular_weight, 4),
+            "inchi": inchi,
+            "inchikey": inchikey,
+            "logp": round(logp, 2),
+            "tpsa": round(tpsa, 2),
+            "hydrogen_bond_donors": hbd,
+            "hydrogen_bond_acceptors": hba,
+            "rotatable_bonds": rotatable_bonds,
+            "heavy_atom_count": heavy_atom_count,
+            "formal_charge": formal_charge,
+            "atom_count": mol.GetNumAtoms(),
+            "ring_count": self.Chem.rdMolDescriptors.CalcNumRings(mol),
+            "aromatic_rings": self.Chem.rdMolDescriptors.CalcNumAromaticRings(mol),
+            "calculation_source": "rdkit",
+            "is_valid": True,
+            "mol_object": None  # Don't return the actual mol object
+        }
+        
+        logger.info(f"✅ RDKit calculated properties for: {canonical_smiles}")
+        logger.info(f"📊 Formula: {molecular_formula}, Weight: {molecular_weight:.2f}")
+        
+        return properties
+        
+    except Exception as e:
+        logger.error(f"❌ RDKit property calculation failed: {e}")
+        return self._calculate_properties_fallback(smiles)
     
     def _calculate_properties_fallback(self, smiles: str) -> Dict[str, Any]:
         """
